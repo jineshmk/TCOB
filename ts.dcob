@@ -110,8 +110,8 @@ dynamic class vehicle {
     constructors vehicle(ID1,S,E,V1,A1,P1,R,VT1){
         VT = VT1;
         ID = ID1;
-        V[1] = V1;
-        P[1] = P1;
+        V<1> = V1;
+        P<1> = P1;
         A = A1
         N= new navigator(S,E,R);         
     }   
