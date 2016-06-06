@@ -29,35 +29,42 @@ process(Stream, Output) :-
    lex(Stream,Tokens), !, %print(Tokens), nl,
    parse(Tokens, ParseTree), !,
   % write('Parse successful. Printing parse tree...'), nl,write(ParseTree),!,nl,
-    translatedcobprog(ParseTree),nl,write('$'),
+    translatedcobprog(ParseTree,ParseTree),nl,write('$'),
    told.
 
 
 %translate each class(X) of the program
-translatedcobprog([X|T]) :-
-   translatedcobclass(X),
-   translatedcobprog(T).
-translatedcobprog([]).
+translatedcobprog([X|T],ParseTree) :-
+   translatedcobclass(X,ParseTree),nl,
+   translatedcobprog(T,ParseTree).
+translatedcobprog([],_).
+
+getsuperclassattr(N,[classdef(N,_,Attr,_,_,_,_,_,_,_)|_],Attr).
+getsuperclassattr(N,[classdef(abstract(N),_,Attr,_,_,_,_,_,_,_)|_],Attr).
+
+getsuperclassattr(N,[_|T],Attr):- getsuperclassattr(N,T,Attr).
 
 %%%%%%%translatedcobclass
 translatedcobclass(classdef(Name,Superclass, Attributes, Constraints, _,
-		   Predicates, _, _, Constructors, _)) :-
-	            write('class '), write(Name),processuperclass(Superclass),
-		    write('{'),nl,nl,processattributes(Attributes),nl,
+		   Predicates, _, _, Constructors, _),ParseTree) :-
+	            writeclass(Name),processuperclass(Superclass,ParseTree,Attr),
+		    write('{'),nl,processattributes(Attributes),append(Attr,Attributes,NewAttr),nl,
 		    %return mto constraints in Mtoconstraints
-		    processconstraints(Attributes,Constraints,Mtoconstraints),nl,
-		    processpredicates(Predicates,Mtoconstraints,Attributes),nl,
+		    processconstraints(NewAttr,Constraints,Mtoconstraints),nl,
+		    processpredicates(Predicates,Mtoconstraints,NewAttr),nl,
 		    processconstructor(Constructors),nl,write('}').
 
+writeclass(abstract(Name)):- write('abstract class '),write(Name).
+writeclass(Name) :- write('class '),write(Name).
 %%%%Super class handling
-processuperclass([]):- !.
-processuperclass(""):- !.
-processuperclass(Name) :- write(' extends '),!,write(Name).
+processuperclass([],_,[]):- !.
+processuperclass("",_,[]):- !.
+processuperclass(Name,ParseTree,Attr) :- write(' extends '),!,write(Name),getsuperclassattr(Name,ParseTree,Attr).
 
 
 %%- Attributes translation , processattributes1 for proper comma writing
 processattributes([]):- !.
-processattributes(X) :- write('attributes'),!,nl, processattributes1(X).
+processattributes(X) :- write('attributes'),!, processattributes1(X).
 processattributes1([]).
 processattributes1([att(Type,var(Var))|T]) :-
 		  tab(1),getdecl(Type,Decl),dumpprint(Decl),write(Var),
@@ -74,17 +81,20 @@ getdecl(array(primitive(Type), Size),[Type,' ',Size] ) .
 getdecl(array(user(Type),Size),[Type,' ', Size]).
 
 dumpprint([]).
-dumpprint([H|T]) :- write(H),dumpprint(T).
+%dumpprint([id(H)|T]) :-  write(H),dumpprint(T).
+dumpprint([H|T]) :- ppterm(H,_),dumpprint(T).
 
 %% Constraint translation
 %
 processconstraints([],[],_):-!.
+processconstraints(_,[],_):-!.
+
 processconstraints(X,Y,P) :- write('constraints'),!,nl,processconstraints1(X,Y,P).
 processconstraints1(_,[],_) :-!.
 %handle class with series variable add time loop
 processconstraints1(Attributes,Constraints,Pred) :-
 	            seriescheck(Attributes),handletimeloop(Constraints,Attributes,Pred).
-processconstraints1(_,Constraints,_) :- ppconstraintlist(Constraints,[],_).
+processconstraints1(_,Constraints,_) :- ppconstraintlist(Constraints,[],_),write(';').
 
 handletimeloop(Constraints,Attributes,Mtopredlist) :-
 	            tab(1),write('settime(Time);'),nl,write('forall T in 1..Time:('),!,nl,tab(1),
@@ -166,6 +176,7 @@ ppconstraint2(X,Attr,Mto) :-  ppconstraint(X,Attr,Mto), write(';'), nl.
 
 ppconstraint(compare(R, Term1, Term2),Attr,_) :-
 	         ppterm(Term1,Attr), write('  '), write(R), write('  '), ppterm(Term2,Attr).
+ppconstraint(constraintPred(N,X),A,_) :- write(N),write('('),ppterms(X,A),write(')').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%Extract mtoconstraints and print predicate name
 ppconstraint(mto('G',time(Start,End),C),_,P) :-
@@ -193,6 +204,14 @@ ppconstraint(mto('G',[],C),_,P) :-
 ppconstraint(uquant(I,fromto(X,Y),C),Attr,Mto) :-
 	        write('forall '),write(I),write(' in '), write(X),write('..'),
 		write(Y),write(':('),ppconstraintlist(C,Attr,Mto),write(')').
+ppconstraint(uquant(I,X,C),Attr,Mto) :-
+	        write('forall '),write(I),write(' in '), write(X)
+		,write(':('),ppconstraintlist(C,Attr,Mto),write(')').
+
+ppconstraint(summation(In,Type,C),Attr,Mto) :-
+	        write('sum'),write(In),write(' in '), write(Type),
+		write(':('),ppconstraintlist(C,Attr,Mto),write(')').
+
 ppconstraint(condConstr(Constraint, Literals),Attr,Mto) :-
 		ppconstraintlist([Constraint],Attr,Mto), write(':-'),
 		ppliterals(Literals,Attr).
@@ -207,13 +226,12 @@ ppconstraint(bool(P),Attr,_) :- ppterm(P,Attr).
 
 ppconstraint(builtinclpr(X),_,_) :- write(X).
 
-ppterms([X]) :- ppterm(X).
 ppterms([X|T]) :- ppterm(X), write(','), ppterms(T).
 
 ppterms([X],[]) :- ppterm(X).
 ppterms([X|T],[]) :- ppterm(X), write(','), ppterms(T).
 
-
+ppterms(summation(X,Y,C),A) :- ppconstraint(summation(X,Y,C),A,_).
 ppterms([X],A) :- ppterm(X,A).
 ppterms([X|T],A) :- ppterm(X,A), write(','), ppterms(T,A).
 ppterm(X,[]) :- ppterm(X).
@@ -232,6 +250,9 @@ ppterm(pow(X, Y),A) :-
 
 
 ppterm(ind(X,Y),A) :- !,ppterm(X),write('['),ppterm(Y,A),write(']').
+ppterm(enclosed(T),A) :-
+   !, write('('), ppterm(T,A), write(')').
+%ppterms([X],A) :- ppterm(X,A).
 
 
 ppterm(X,_) :- ppterm(X).
@@ -254,6 +275,7 @@ ppterm(var(V)) :-
    !, write(V).
 ppterm(enclosed(T)) :-
    !, write('('), ppterm(T), write(')').
+
 %next clause added on June 12 2003
 ppterm(negative(T)) :-
    !, write('-'), ppterm(T).
@@ -460,7 +482,7 @@ class_definition(
    body(Attributes, Constraints, Functions, Predicates, Preferences,
    Methods, Constructors), ['}'], {Num_instances = 0, Superclass = ""}.
 class_definition(
-   classdef(Name, Superclass, Attributes, Constraints, Functions,
+   classdef(abstract(Name), Superclass, Attributes, Constraints, Functions,
    Predicates, Preferences, Methods, Constructors, Num_instances))
    --> [abstract], [class], class_id(Name), ['{'], {!}, {setclassnamecounter(Name)},
    body(Attributes, Constraints, Functions, Predicates, Preferences,
@@ -473,7 +495,7 @@ class_definition(
    body(Attributes, Constraints, Functions, Predicates, Preferences,
    Methods, Constructors), ['}'], {Num_instances = 0}.
 class_definition(
-   classdef(Name, Superclass, Attributes, Constraints, Functions,
+   classdef(abstract(Name), Superclass, Attributes, Constraints, Functions,
    Predicates, Preferences, Methods, Constructors, Num_instances))
    --> [abstract], [class], class_id(Name), [extends], {!},
    class_id(Superclass), ['{'], {!}, {setclassnamecounter(Name)},
