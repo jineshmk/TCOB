@@ -40,7 +40,7 @@ conditional_constraint(A, B) :-
 %conditional_constraint(A, _) :- call(A), ! .
 %conditional_constraint(_, B) :- \+(call(B)) .
 
-
+index([_],0,2) :- !.
 index([X|_], 1, X) :- !.
 index([_,X|_], 2, X) :- !.
 index([_,_,X|_], 3, X) :- !.
@@ -118,14 +118,14 @@ r2i(R,I) :-  I is round(R).
 
 cobF(I,T,C,Val)     :- X is I+T,index(C,X,CI),
                        CI = Val.
-cobF(Lo,Hi,T,C,Val) :- random(Lo,Hi,S), X is T+S, 
+cobF(Lo,Hi,T,C,Val) :- random(Lo,Hi,S), X is T+S,
                       index(C,X,CI),CI=Val.
-        
-cobG(Lo,Hi,T,C,Val) :- Lo < Hi, X is Lo+T, 
+
+cobG(Lo,Hi,T,C,Val) :- Lo < Hi, X is Lo+T,
                        index(C,X,CI), CI=Val,Lo1 is Lo+1,
                        cobG(Lo1,Hi,T,C,Val).
-cobG(Lo,Lo,T,C,Val). 
+cobG(Lo,Lo,T,C,Val).
 
-                                
-            
-         
+
+
+
