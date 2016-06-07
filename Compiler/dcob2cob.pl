@@ -29,15 +29,17 @@ process(Stream, Output) :-
    lex(Stream,Tokens), !, %print(Tokens), nl,
    parse(Tokens, ParseTree), !,
   % write('Parse successful. Printing parse tree...'), nl,write(ParseTree),!,nl,
-    translatedcobprog(ParseTree,ParseTree),nl,write('$'),
+    translatedcob(ParseTree),!,nl,write('$'),
    told.
 
-
+translatedcob([time(X,Y)|T]):- translatedcobprog(T,T,[X,Y]).
 %translate each class(X) of the program
-translatedcobprog([X|T],ParseTree) :-
-   translatedcobclass(X,ParseTree),nl,nl,
-   translatedcobprog(T,ParseTree).
-translatedcobprog([],_).
+translatedcobprog([X|T],ParseTree,Time) :-
+   translatedcobclass(X,ParseTree,Time),!,nl,nl,
+   translatedcobprog(T,ParseTree,Time).
+translatedcobprog([],_,_).
+
+
 getclassattr(_,[],[]).
 getclassattr(N,[classdef(N,_,Attr,_,_,_,_,_,_,_)|_],Attr).
 getclassattr(N,[classdef(abstract(N),_,Attr,_,_,_,_,_,_,_)|_],Attr).
@@ -46,13 +48,13 @@ getclassattr(N,[_|T],Attr):- getclassattr(N,T,Attr).
 
 %%%%%%%translatedcobclass
 translatedcobclass(classdef(Name,Superclass, Attributes, Constraints, _,
-		   Predicates, _, _, Constructors, _),ParseTree) :-
+		   Predicates, _, _, Constructors, _),ParseTree,Time) :-
 	            writeclass(Name),processuperclass(Superclass),
 		    write('{'),nl,processattributes(Attributes),
 		    %return mto constraints in Mtoconstraints
 		    getclassattr(Superclass,ParseTree,CLB),!,append(Attributes,CLB,Attr),
-		    processconstraints(ParseTree,Constraints,Attr,Mtoconstraints),
-		    processpredicates(Predicates,Mtoconstraints,Attr),
+		    processconstraints(ParseTree,Constraints,Attr,Mtoconstraints,Name,Time),
+		    processpredicates(Predicates,Mtoconstraints,ParseTree,Attr),
 		    processconstructor(Constructors),nl,write('}').
 
 writeclass(abstract(Name)):- write('abstract class '),write(Name).
@@ -87,30 +89,37 @@ dumpprint([H|T]) :- ppterm(H,[]),dumpprint(T).
 
 %% Constraint translation
 %
-processconstraints(_,[],_,_):-!.
+processconstraints(_,[],_,_,_,_):-!.
 
-processconstraints(PT,C,A,P) :- write('constraints'),!,nl,processconstraints1(PT,C,A,P),nl.
-processconstraints1(_,[],_,_) :-!.
+processconstraints(PT,C,A,P,N,T) :- write('constraints'),!,nl,processconstraints1(PT,C,A,P,N,T),nl.
+processconstraints1(_,[],_,_,_,_) :-!.
 %handle class with series variable add time loop
-processconstraints1(ParseTree,Constraints,Attributes,Pred) :-
-	            seriescheck(Attributes),handletimeloop(ParseTree,Constraints,Attributes,Pred).
-processconstraints1(ParseTree,Constraints,Attributes,_) :- ppconstraintlist(ParseTree,Constraints,Attributes,_),write(';'),nl.
+processconstraints1(ParseTree,Constraints,Attributes,Pred,Name,Time) :-
+	           % seriescheck(Attributes),!,
+	handletimeloop(ParseTree,Constraints,Attributes,Pred,Name,Time).
+processconstraints1(ParseTree,Constraints,Attributes,_,_,_) :- ppconstraintlist(ParseTree,Constraints,Attributes,_),write(';'),nl.
 
-handletimeloop(PT,Constraints,Attributes,Mtopredlist) :-
-	            tab(1),write('settime(Time);'),nl,tab(1),write('forall T in 1..Time:('),!,nl,tab(1),
+handletimeloop(PT,Constraints,Attributes,Mtopredlist,Name,[X,Y]) :-
+	            getstarttime(Y,Name,Start),!,( Start>0 ->  nl,tab(1),write('forall T in '),write(Start),write('..'),write(X),write(':('),!,nl,tab(1),
 		    getmtoconstraints(Constraints,Mtopred),delete(Mtopred,[],Mtopredlist),
-		    ppconstraintlist(PT,Constraints,Attributes,Mtopredlist),nl,tab(1),write(');'),nl.
+		    ppconstraintlist(PT,Constraints,Attributes,Mtopredlist),nl,tab(1),write(');'),nl
 
+						 ;  ppconstraintlist(PT,Constraints,_,_),write(';')).
+
+
+
+getstarttime([],_,1).
+getstarttime([[Name,Y]|_],Name,Y).
+getstarttime([_|T],Name,Y) :- getstarttime(T,Name,Y).
 %%%Check for series variable
 seriescheck([att(series(_),_)|_]).
 seriescheck([_|T]) :- seriescheck(T).
 seriescheckvariable([att(series(_),var(V))|_],V).
 seriescheckvariable([_|T],V) :- seriescheckvariable(T,V).
 
-processpredicates([],[],[]).
-processpredicates([],[],_).
-processpredicates([class_predicates(X)],Y,Attr) :-write('predicates'),nl, writepredicates1(X),writemtopredicates(Y,Attr),nl.
-processpredicates([],Y,Attr) :-write('predicates'),nl, writemtopredicates(Y,Attr),nl.
+processpredicates([],[],_,_).
+processpredicates([class_predicates(X)],Y,PT,Attr) :-write('predicates'),nl, writepredicates1(X),writemtopredicates(Y,PT,Attr),nl.
+processpredicates([],Y,PT,Attr) :-write('predicates'),nl, writemtopredicates(Y,PT,Attr),nl.
 writepredicates1([]).
 writepredicates1([X|T]) :- dumpprint(X),nl,writepredicates1(T).
 
@@ -131,9 +140,9 @@ writeargument2(T):- write(','),writeargument(T).
 
 writeargumentlist([]).
 writeargumentlist([X]) :- ppterm(X).
-writeargumentlist([X|T]) :- ppterm(X),writeargumentlist2(T).
+writeargumentlist([X|T]) :- ppterm(X),!,writeargumentlist2(T).
 writeargumentlist2([]).
-writeargumentlist2(T):- write(','),writeargumentlist(T).
+writeargumentlist2(T):- !,write(','),writeargumentlist(T).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -151,17 +160,19 @@ dcobseries(X) :- gensym('Dcobser',X).
 dcobindex(X) :- gensym('Dcobind',X).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-getvars(compare(_,Term1,Term2),[H|T]) :- getvars(Term1,H),getvars(Term2,T).
-getvars(add(Term1,Term2),[H,T]) :-  getvars(Term1,H),getvars(Term2,T).
-getvars(sub(Term1,Term2),[H,T]) :-  getvars(Term1,H),getvars(Term2,T).
-getvars(mult(Term1,Term2),[H,T]) :-  getvars(Term1,H),getvars(Term2,T).
-getvars(divide(Term1,Term2),[H,T]) :-  getvars(Term1,H),getvars(Term2,T).
-getvars(enclosed(X),L) :- getvars(X,L).
+getvars(PT,Attr,compare(_,Term1,Term2),[H|T]) :- getvars(PT,Attr,Term1,H),getvars(PT,Attr,Term2,T).
+getvars(PT,Attr,add(Term1,Term2),[H,T]) :-  getvars(PT,Attr,Term1,H),getvars(PT,Attr,Term2,T).
+getvars(PT,Attr,sub(Term1,Term2),[H,T]) :-  getvars(PT,Attr,Term1,H),getvars(PT,Attr,Term2,T).
+getvars(PT,Attr,mult(Term1,Term2),[H,T]) :-  getvars(PT,Attr,Term1,H),getvars(PT,Attr,Term2,T).
+getvars(PT,Attr,divide(Term1,Term2),[H,T]) :-  getvars(PT,Attr,Term1,H),getvars(PT,Attr,Term2,T).
+getvars(PT,Attr,enclosed(X),L) :- getvars(PT,Attr,X,L).
 
-getvars(var(X),var(X)).
-getvars(ser(X,Y),ser(X,Y)).
-getvars(ind(X,Y),ind(X,Y)).
-getvars(_,[]):- !.
+getvars(_,_,var(X),var(X)).
+getvars(_,_,ser(X,Y),ser(X,Y)).
+getvars(_,_,ind(X,Y),ind(X,Y)).
+getvars(PT,Attr,ref(var(X),var(Y)),ref(var(X),ser(Y))):-getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),seriescheckvariable(NewAttr,Y).
+getvars(_,_,ref(var(X),var(Y)),ref(var(X),var(Y))).
+getvars(_,_,_,[]):- !.
 
 
 ppconstraintlist(_,[],[],_). %not correct
@@ -176,30 +187,30 @@ ppconstraint2(PT,X,Attr,Mto) :-  ppconstraint(PT,X,Attr,Mto), write(';'), nl.
 
 
 ppconstraint(PT,compare(R, Term1, Term2),Attr,_) :-
-	         ppconstraint(PT,Term1,Attr,_), write('  '), write(R), write('  '), ppterm(Term2,Attr).
-ppconstraint(_,constraintPred(N,X),A,_) :- write(N),write('('),ppterms(X,A),write(')').
+	         ppconstraint(PT,Term1,Attr,_), write('  '), write(R), write('  '),ppconstraint(PT,Term2,Attr,_).
+ppconstraint(_,constraintPred(N,X),A,_) :- write(N),write('('),!,ppterms(X,A),write(')').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%Extract mtoconstraints and print predicate name
-ppconstraint(_,mto('G',time(Start,End),C),_,P) :-
+ppconstraint(PT,mto('G',time(Start,End),C),A,P) :-
 	        getgpredicatename(P,C,N),  write(N), write('('),write(Start),write(','),write(End)
-	       ,write(',T,['),getvars(C,Vars),writeargumentlist(Vars),write('])').
-ppconstraint(_,mto('F',time(Start,End),C),_,P) :-
+	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+ppconstraint(PT,mto('F',time(Start,End),C),A,P) :-
 	        getfpredicatename(P,C,N),  write(N), write('('),write(Start),write(','),
-		write(End) ,write(',T,['),getvars(C,Vars),writeargumentlist(Vars),write('])').
-ppconstraint(_,mto('G',time(Start),C),_,P) :-
+		write(End) ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+ppconstraint(PT,mto('G',time(Start),C),A,P) :-
 	        getgpredicatename(P,C,N),  write(N), write('('),write(Start),write(',Time')
-	       ,write(',T,['),getvars(C,Vars),writeargumentlist(Vars),write('])').
-ppconstraint(_,mto('F',time(Start),C),_,P) :-
+	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+ppconstraint(PT,mto('F',time(Start),C),A,P) :-
 	        getfpredicatename(P,C,N),  write(N), write('('),write(Start)
-	       ,write(',T,['),getvars(C,Vars),writeargumentlist(Vars),write('])').
+	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 
-ppconstraint(_,mto('F',[],C),_,P) :-
+ppconstraint(PT,mto('F',[],C),A,P) :-
 	        getfpredicatename(P,C,N),  write(N), write('(1,Time,0,[')
-	       ,getvars(C,Vars),writeargumentlist(Vars),write('])').
-ppconstraint(_,mto('G',[],C),_,P) :-
+	       ,getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+ppconstraint(PT,mto('G',[],C),A,P) :-
 	        getgpredicatename(P,C,N),  write(N), write('(1,Time,0,[')
-	       ,getvars(C,Vars),writeargumentlist(Vars),write('])').
-ppconstraint(_,ref(var(X),V),Attributes,_):- write(X),write(.),ppterm(V,Attributes).
+	       ,getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+ppconstraint(PT,ref(var(X),V),Attr,_):- getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),write(X),write(.),ppterm(V,NewAttr).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -223,7 +234,7 @@ ppconstraint(PT,condConstr(Constraint, Literals),Attr,Mto) :-
 		ppliterals(Literals,Attr).
 ppconstraint(_,new(O,C,A),Attr,_) :-
 	        ppterm(O), write(' = new ')
-	       ,write(C),write('('), ppterms(A,Attr),write(')').
+	       ,write(C),write('('),!, ppterms(A,Attr),write(')').
 
 
 
@@ -241,16 +252,19 @@ gettype(V,[_|T],Type):- gettype(V,T,Type).
 
 getobjattr(PT,Obj,Attr,NewAttr) :- gettype(Obj,Attr,Type),getclassattr(Type,PT,NewAttr).
 
-
-ppterms([X|T]) :- ppterm(X), write(','), ppterms(T).
+ppterms([X]) :- ppterm(X).
+ppterms([]).
+ppterms([X|T]) :- ppterm(X),!, write(','), ppterms(T).
+ppterms([],_).
 
 ppterms([X],[]) :- ppterm(X).
-ppterms([X|T],[]) :- ppterm(X), write(','), ppterms(T).
+ppterms([X|T],[]) :- ppterm(X),!, write(','), ppterms(T).
 %ppterm(summation(X,Y,C),A) :- ppconstraint(summation(X,Y,C),A,_).
 ppterms([X],A) :- ppterm(X,A).
-ppterms([X|T],A) :- ppterm(X,A), write(','), ppterms(T,A).
-ppterm(ref(X,V),A):- ppterm(X),write('.'),ppterm(V,A).
-
+ppterms([X|T],A) :- ppterm(X,A), !,write(','), ppterms(T,A).
+ppterm((ref(prev(X),Y)),_) :-
+       !, ppterm(ref(X,Y)), write('[T-1]').
+ppterm(ref(X,V),A):- ppterm(X),!,write('.'),ppterm(V,A).
 ppterm(X,[]) :- ppterm(X).
 ppterm(var(X),Attr) :- seriescheckvariable(Attr,X),!, write(X),write('[T]').
 ppterm(ser(_,Y),[1]):- write(Y).
@@ -273,10 +287,16 @@ ppterm(enclosed(T),A) :-
 
 
 ppterm(X,_) :- ppterm(X).
+ppterm(ref(X,V)):- ppterm(X),!,write('.'),ppterm(V).
+ppterm((ref(prev(X),Y))) :-
+       !, ppterm(ref(X,Y)), write('[T-1]').
+ppterm(ser(X)):- !,write(X),write('[T]').
+
 ppterm(ind(X,Y)) :- !,ppterm(X),write('['),ppterm(Y),write(']').
 ppterm(ser(X,_)) :- !,write(X).
 ppterm(next(V)) :-
        !, ppterm(V), write('[T+1]').
+
 ppterm(prev(V)) :-
        !, ppterm(V), write('[T-1]').
 ppterm(at(V,I)) :- !,ppterm(V),write('['),write(I),write(']').
@@ -362,44 +382,55 @@ getfpredicatename(dcobF(N,_,C),C,N):-!.
 getfpredicatename([H|_],C,N) :- getfpredicatename(H,C,N).
 getfpredicatename([_|T],C,N) :- getfpredicatename(T,C,N).
 
-writemtopredicates([],_).
-writemtopredicates([X|T],Attr) :-  writemtopredicates1(X,Attr),writemtopredicates(T,Attr).
+writemtopredicates([],_,_).
+writemtopredicates([X|T],PT,Attr) :-  writemtopredicates1(X,PT,Attr),writemtopredicates(T,PT,Attr).
 
-writemtopredicates1(X,A) :- ppmtopredicate(X,A),write('.'),nl.
+writemtopredicates1(X,PT,A) :- ppmtopredicate(X,PT,A),write('.'),nl.
 %Index for series variable
 writeindex([],_).
 writeindex([H|T],I) :-writeindex(H,I),writeindex(T,I).
 writeindex(ser(X,Y),I):- write('index('),write(X),write(','),write(I),write(','),write(Y),write('),').
 writeindex(_,_).
-printgpredicate(N,C,A) :- writedefaultG(N),nl,write(N),write('( Lo,Hi,T,['),
-	pmtoargument(C,A,R),getvars(R,VarList),writeargumentlist(VarList),
+printgpredicate(N,C,PT,A) :- writedefaultG(N),nl,write(N),write('( Lo,Hi,T,['),
+	pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),writeargumentlist(VarList),
 	write(']) :- Lo<Hi,'),dcobindex(I),write(I),write(' is Lo+T,'),writeindex(VarList,I),
-	write('{'),ppconstraint(_,R,[1],_),write('},'),write('Lo1 is Lo+1,'),write(N),write('( Lo1,Hi,T,['),
+	(checkquotedstring(C) -> ppconstraint(_,R,[1],_);write('{'),ppconstraint(_,R,[1],_),write('}')),write(',Lo1 is Lo+1,'),write(N),write('( Lo1,Hi,T,['),
 	writeargumentlist(VarList),write('])').
-printfpredicate(N,C,A) :- write(N),write('( Lo,Hi,T,['),pmtoargument(C,A,R),getvars(R,VarList),
+printfpredicate(N,C,PT,A) :- write(N),write('( Lo,Hi,T,['),pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),
 	writeargumentlist(VarList),write(']) :- random(Lo,Hi,S),'),dcobindex(I),write(I),write( ' is T+S,'),
-	writeindex(VarList,I),write('{'),ppconstraint(_,R,[1],_),write('}').
+	writeindex(VarList,I),(checkquotedstring(C) -> ppconstraint(_,R,[1],_);write('{'),ppconstraint(_,R,[1],_),write('}')).
 
-ppmtopredicate(dcobG(N,time(_,_),C),A) :- printgpredicate(N,C,A).
-ppmtopredicate(docobG(N,time(_),C),A) :- printgpredicate(N,C,A).
-ppmtopredicate(dcobG(N,[],C),A) :- printgpredicate(N,C,A).
-ppmtopredicate(dcobF(N,time(_,_),C),A) :-printfpredicate(N,C,A).
-ppmtopredicate(dcobF(N,[],C),A) :-printfpredicate(N,C,A).
-ppmtopredicate(dcobF(N,time(_),C),A) :-write(N),write('( Lo,T,['),pmtoargument(C,A,R),getvars(R,VarList),
+ppmtopredicate(dcobG(N,time(_,_),C),PT,A) :- printgpredicate(N,C,PT,A).
+ppmtopredicate(docobG(N,time(_),C),PT,A) :- printgpredicate(N,C,PT,A).
+ppmtopredicate(dcobG(N,[],C),PT,A) :- printgpredicate(N,C,PT,A).
+ppmtopredicate(dcobF(N,time(_,_),C),PT,A) :-printfpredicate(N,C,PT,A).
+ppmtopredicate(dcobF(N,[],C),PT,A) :-printfpredicate(N,C,PT,A).
+ppmtopredicate(dcobF(N,time(_),C),PT,A) :-write(N),write('( Lo,T,['),pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),
 	writeargumentlist(VarList),write(']) :-'),dcobindex(I),write(I),write(' is T+Lo,'),
-	writeindex(VarList,I),write('{'),ppconstraint(_,R,[1],_),write('}').
+	writeindex(VarList,I),(checkquotedstring(C) -> ppconstraint(_,R,[1],_);write('{'),ppconstraint(_,R,[1],_),write('}')).
 
 writedefaultG(N) :- write(N),write('(Lo,Lo,_,_):-!.'),nl.
 
-pmtoargument(compare(R,Term1,Term2),A,compare(R,RTerm1,RTerm2)):- pmtoterm(Term1,A,RTerm1),pmtoterm(Term2,A,RTerm2).
+pmtoargument(compare(R,Term1,Term2),PT,A,compare(R,RTerm1,RTerm2)):- pmtoterm(Term1,PT,A,RTerm1),pmtoterm(Term2,PT,A,RTerm2).
 
-pmtoterm(compare(R,X,Y),A,X) :- pmtoargument(compare(R,X,Y),A,X).
-pmtoterm(add(X,Y),A,add(RX,RY)) :-pmtoterm(X,A,RX),pmtoterm(Y,A,RY).
-pmtoterm(enclosed(X,Y),A,enclosed(RX,RY)) :-pmtoterm(X,A,RX),pmtoterm(Y,A,RY).
-pmtoterm(var(X),A,ser(X,N)) :- seriescheckvariable(A,X),dcobseries(N).
-pmtoterm(var(X),_,var(X)).
-pmtoterm(ind(_,_),_,var(R)):- dcobind(R).
-pmtoterm(X,_,X).
+pmtoterm(compare(R,X,Y),PT,A,X) :- pmtoargument(compare(R,X,Y),PT,A,X).
+pmtoterm(add(X,Y),PT,A,add(RX,RY)) :-pmtoterm(X,PT,A,RX),pmtoterm(Y,PT,A,RY).
+pmtoterm(enclosed(X,Y),PT,A,enclosed(RX,RY)) :-pmtoterm(X,PT,A,RX),pmtoterm(Y,PT,A,RY).
+pmtoterm(var(X),A,_,ser(X,N)) :- seriescheckvariable(A,X),dcobseries(N).
+pmtoterm(var(X),_,_,var(X)).
+pmtoterm(ind(_,_),_,_,var(R)):- dcobind(R).
+pmtoterm(ref(var(X),var(Y)),PT,A,ser(X,N)):- getobjattr(PT,X,A,Attributes),append(Attributes,A,NewAttr),seriescheckvariable(NewAttr,Y),dcobseries(N).
+pmtoterm(ref(_,var(Y)),_,_,var(Y)).
+pmtoterm(X,_,_,X).
+
+
+checkquotedstring(compare(=,Term1,Term2)):- checkquotedstring(Term1);checkquotedstring(Term2).
+checkquotedstring(add(Term1,Term2)) :- checkquotedstring(Term1);checkquotedstring(Term2).
+checkquotedstring(mult(Term1,Term2)) :- checkquotedstring(Term1);checkquotedstring(Term2).
+checkquotedstring(divide(Term1,Term2)) :- checkquotedstring(Term1);checkquotedstring(Term2).
+checkquotedstring(sub(Term1,Term2)) :- checkquotedstring(Term1);checkquotedstring(Term2).
+checkquotedstring(quotedString(_)).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -486,12 +517,20 @@ removenumbers([X|T], [X|RT]) :-
 
 
 
-parse(Tokens, ParseTree) :- resetclassnamecounter(_), resetkeywordcounter(_), program(ParseTree, Tokens, []), !.
+parse(Tokens, ParseTree) :- resetclassnamecounter(_), resetkeywordcounter(_), time_program(ParseTree, Tokens, []), !.
 % parse(_,[]) :- print('Syntax error in class '), %classnamecounter(C),
 % print(C), nl,
    %            print('while parsing '), parsing(X), print(X),
   %            keywordclausecounter(Y), print(Y), nl, fail.
 
+time_program([X|T]) --> time_info(X), {!}, program(T).
+time_program([]) --> [].
+time_info(time(X,Y)) --> ['{'],[id(simulation_time)],[=],[num(X)],[','],[id(start_time)],['('],time_start(Y),[')'],['}'].
+time_info(time(X,[])) --> ['{'],[id(simulation_time)],[=],[num(X)],['}'].
+
+time_start([[C,T]|Tail]) --> ['['],[id(C)],[','],[num(T)],[']'],[','],time_start(Tail).
+time_start([[C,T]]) --> ['['],[id(C)],[','],[num(T)],[']'].
+time_start([]) --> [].
 
 program([X|T]) --> class_definition(X), {!}, program(T).
 program([]) --> [].
@@ -605,6 +644,12 @@ creational_constraint(new(T1, Name, Args)) -->
    [id('new')], {!},
    class_id(Name),
    ['('], terms(Args), [')'].
+
+creational_constraint(new(T1, Name, [])) -->
+   term(T1), ['='],
+   [id('new')], {!},
+   class_id(Name),
+   ['('], [')'].
 
 %change name to uquant and equant...done
 quantified_constraint(uquant(V, E, LX)) -->
@@ -775,6 +820,7 @@ constant(N,M,Z) --> [dnum(N, M, Z)].
 attribute(In, X) --> selector(In, X), { In = ['$']}.
 attribute(In, Out) --> ['.'], {\+(In = ['$'])}, {!}, selector(In, Out).
 attribute(In, Z) --> selector(In, X), ['.'], {!}, selector(X, Y), attribute(Y, Z), {In = ['$']}.
+attribute(In, next(Z)) --> selector(In, X), ['.'], {!}, selector(X, Y), attribute(Y, Z),['`'], {In = ['$']}.
 attribute(In, In) --> [], {\+(In = ['$'])}.
 
 selector(In, X) --> attribute_id(X), {In = ['$']}.
@@ -794,6 +840,8 @@ selector(In, sel(Name, X)) --> selector_id(Name), {!}, terms(X), {In = ['$']}.
        % following clauses of selector will be used after occurance of a "."
 selector(In, Ind) --> attribute_id(X), ['['], terms(T), [']'], {!},
 			{make_ind(ref(In, X), T, Ind)}, {\+(In = ['$'])}.
+selector(In, ref(In, next(X))) --> attribute_id(X), ['`'],{!}, {\+(In = ['$'])}.
+
 selector(In, ref(In, X)) --> attribute_id(X), {!}, {\+(In = ['$'])}.
 %use of next clause is not known, hence may be incorrect
 selector(In, sel(Name, X)) --> selector_id(Name), terms(X), {\+(In = ['$'])}.
@@ -812,6 +860,7 @@ selector_id(nxt) --> [next].
 selector_id(lst) --> [last].
 
 terms([X]) --> term(X).
+terms([]) -->[].
 %terms([next(X)]) --> term(X),['`'].
 terms([X|T]) --> term(X), [','], {!}, terms(T). %make sure this cut is correct
 

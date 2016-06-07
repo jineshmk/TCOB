@@ -1,6 +1,6 @@
 :- use_module(library(clpr)).
 
-:-assert(settime(10)).
+:-assert(settime(40)).
 conditional_constraint(A, B) :- ground(B), call(B), !, call(A).
 conditional_constraint(A, B) :- !.
 % BJ: 2/17/2012 - above rule causes CC to skip when B is non-ground.
