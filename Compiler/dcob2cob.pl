@@ -185,10 +185,13 @@ ppconstraint2(_,compare('=', Term1, Term2),_,_) :-
 ppconstraint2(_,'true',_,_) :- write('true').
 ppconstraint2(PT,X,Attr,Mto) :-  ppconstraint(PT,X,Attr,Mto), write(';'), nl.
 
+pppredargument(_,[],_).
+pppredargument(PT,[X],A):- ppconstraint(PT,X,A,_).
+pppredargument(PT,[X|T],A):- ppconstraint(PT,X,A,_),write(','),pppredargument(PT,T,A).
 
 ppconstraint(PT,compare(R, Term1, Term2),Attr,_) :-
 	         ppconstraint(PT,Term1,Attr,_), write('  '), write(R), write('  '),ppconstraint(PT,Term2,Attr,_).
-ppconstraint(_,constraintPred(N,X),A,_) :- write(N),write('('),!,ppterms(X,A),write(')').
+ppconstraint(PT,constraintPred(N,X),A,_) :- write(N),write('('),pppredargument(PT,X,A),write(')').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%Extract mtoconstraints and print predicate name
 ppconstraint(PT,mto('G',time(Start,End),C),A,P) :-
@@ -231,7 +234,7 @@ ppconstraint(PT,summation(In,Obj,C),Attr,Mto) :-
 
 ppconstraint(PT,condConstr(Constraint, Literals),Attr,Mto) :-
 		ppconstraintlist(PT,[Constraint],Attr,Mto), write(':-'),
-		ppliterals(Literals,Attr).
+		ppliterals(Literals,PT,Attr).
 ppconstraint(_,new(O,C,A),Attr,_) :-
 	        ppterm(O), write(' = new ')
 	       ,write(C),write('('),!, ppterms(A,Attr),write(')').
@@ -357,15 +360,15 @@ ppmakelistterms([X|T]) :-
    ppterm(X), ppmakelistterms(T).
 ppmakelistterms([]).
 
-ppliterals([X],A) :-
+ppliterals([X],PT,A) :-
    tabs(1),
-   ppliteral(X,A).
-ppliterals([X|T],A) :-
+   ppliteral(X,PT,A).
+ppliterals([X|T],PT,A) :-
   tabs(1),
-   ppliteral(X,A), write(','), nl,
-   ppliterals(T,A).
+   ppliteral(X,PT,A), write(','), nl,
+   ppliterals(T,PT,A).
 
-ppliteral(X,A):- ppconstraint(_,X,A,_).
+ppliteral(X,PT,A):- ppconstraint(PT,X,A,_).
 
 
 tabs(0) :- !.
