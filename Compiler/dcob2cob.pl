@@ -1,8 +1,15 @@
 %DCOB translator
 %Authors: Bharat Jayaraman,Pallavi,Jinesh
-:- module(dcob2cob, [dcob2cob/1]).
+:- module(dcob2cob, [dcob2cob/1,tcob2cob/1]).
 :- use_module(library(lists)).
-
+tcob2cob(File) :-
+   atom_codes(File, FullCodes),
+   atom_codes('.tcob',S),
+   append(FileCodes, S ,FullCodes),
+   atom_codes(Prefix,FileCodes),
+   atom_concat(Prefix, '.cob', Output),
+   dcob2cob(File,Output).
+   
 dcob2cob(File) :-
    atom_codes(File, FullCodes),
    atom_codes('.dcob',S),
@@ -11,6 +18,9 @@ dcob2cob(File) :-
    atom_concat(Prefix, '.cob', Output),
    dcob2cob(File,Output).
 
+ tcob2cob(File, Output) :-
+   open(File,read,Stream),
+   process(Stream, Output).
  dcob2cob(File, Output) :-
    open(File,read,Stream),
    process(Stream, Output).
@@ -77,6 +87,12 @@ processattributes1([att(Type,var(Var))|T]) :-
 getdecl(primitive(Type),[Type,' ']).
 getdecl(user(Type),[Type,' ']).
 getdecl(series(primitive(Type)),[Type, ' []']).
+getdecl(array(series(primitive(Type)),1),[Type, ' [][]']).
+getdecl(array(series(user(Type)),1),[Type, ' [][]']).
+getdecl(array(series(primitive(Type)),Size),[Type, ' [',Size,'][]']).
+getdecl(array(series(user(Type)),Size),[Type, ' [',Size,'][]']).
+
+
 getdecl(series(user(Type)),[Type, ' []']).
 getdecl(array(primitive(Type),1),[Type,' []']).
 getdecl(array(user(Type),1),[Type,' []']) .
@@ -115,6 +131,8 @@ getstarttime([_|T],Name,Y) :- getstarttime(T,Name,Y).
 seriescheck([att(series(_),_)|_]).
 seriescheck([_|T]) :- seriescheck(T).
 seriescheckvariable([att(series(_),var(V))|_],V).
+seriescheckvariable([att(array(series(_),_),var(V))|_],V).
+
 seriescheckvariable([_|T],V) :- seriescheckvariable(T,V).
 
 processpredicates([],[],_,_).
@@ -141,6 +159,7 @@ writeargument2(T):- write(','),writeargument(T).
 writeargumentlist([]).
 writeargumentlist([X]) :- ppterm(X).
 writeargumentlist([X|T]) :- ppterm(X),!,writeargumentlist2(T).
+writeargumentlist(X):- ppterm(X).
 writeargumentlist2([]).
 writeargumentlist2(T):- !,write(','),writeargumentlist(T).
 
@@ -158,6 +177,7 @@ dcobfpred(X) :- gensym(dcobf, X).
 dcobind(X) :- gensym('Dcobi',X).
 dcobseries(X) :- gensym('Dcobser',X).
 dcobindex(X) :- gensym('Dcobind',X).
+dcobnp(X):- gensym('Dcobnp',X).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 getvars(PT,Attr,compare(_,Term1,Term2),[H|T]) :- getvars(PT,Attr,Term1,H),getvars(PT,Attr,Term2,T).
@@ -170,6 +190,8 @@ getvars(PT,Attr,enclosed(X),L) :- getvars(PT,Attr,X,L).
 getvars(_,_,var(X),var(X)).
 getvars(_,_,ser(X,Y),ser(X,Y)).
 getvars(_,_,ind(X,Y),ind(X,Y)).
+getvars(_,_,next(X),next(X)).
+getvars(_,_,prev(X),prev(X)).
 getvars(PT,Attr,ref(var(X),var(Y)),ref(var(X),ser(Y))):-getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),seriescheckvariable(NewAttr,Y).
 getvars(_,_,ref(var(X),var(Y)),ref(var(X),var(Y))).
 getvars(_,_,_,[]):- !.
@@ -191,20 +213,42 @@ pppredargument(PT,[X|T],A):- ppconstraint(PT,X,A,_),write(','),pppredargument(PT
 
 ppconstraint(PT,compare(R, Term1, Term2),Attr,_) :-
 	         ppconstraint(PT,Term1,Attr,_), write('  '), write(R), write('  '),ppconstraint(PT,Term2,Attr,_).
+ppconstraint(PT,mult(Term1, Term2),Attr,_) :-
+	         ppconstraint(PT,Term1,Attr,_), write('  '), write('*'), write('  '),ppconstraint(PT,Term2,Attr,_).
+ppconstraint(PT,add( Term1, Term2),Attr,_) :-
+	         ppconstraint(PT,Term1,Attr,_), write('  '), write('+'), write('  '),ppconstraint(PT,Term2,Attr,_).
+
+ppconstraint(PT,sub(Term1, Term2),Attr,_) :-
+	         ppconstraint(PT,Term1,Attr,_), write('  '), write('-'), write('  '),ppconstraint(PT,Term2,Attr,_).
+
+ppconstraint(PT,divide(Term1, Term2),Attr,_) :-
+	         ppconstraint(PT,Term1,Attr,_), write('  '), write('/'), write('  '),ppconstraint(PT,Term2,Attr,_).
+ppconstraint(PT,enclosed(Term1),Attr,_) :-
+	write(' ( '), ppconstraint(PT,Term1,Attr,_),write(')').
+
+
 ppconstraint(PT,constraintPred(N,X),A,_) :- write(N),write('('),pppredargument(PT,X,A),write(')').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%Extract mtoconstraints and print predicate name
+%ppconstraint(PT,mto('G',time(Start,End),C),A,P) :-
+%		getgpredicatename(P,C,N), write(N),
+%		write('('),write(Start),write(','),write(End)
+%	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+%
 ppconstraint(PT,mto('G',time(Start,End),C),A,P) :-
-	        getgpredicatename(P,C,N),  write(N), write('('),write(Start),write(','),write(End)
+		getgpredicatename(P,C,N), write(N),
+		write('('),ppconstraint(PT,Start,A,_),write(','),ppconstraint(PT,End,A,_)
 	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+
 ppconstraint(PT,mto('F',time(Start,End),C),A,P) :-
-	        getfpredicatename(P,C,N),  write(N), write('('),write(Start),write(','),
-		write(End) ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+	        getfpredicatename(P,C,N),  write(N),
+			write('('),ppconstraint(PT,Start,A,_),write(','),ppconstraint(PT,End,A,_)
+		,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 ppconstraint(PT,mto('G',time(Start),C),A,P) :-
-	        getgpredicatename(P,C,N),  write(N), write('('),write(Start),write(',Time')
+	        getgpredicatename(P,C,N),  write(N), write('('),ppconstraint(PT,Start,A,_),write(',Time')
 	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 ppconstraint(PT,mto('F',time(Start),C),A,P) :-
-	        getfpredicatename(P,C,N),  write(N), write('('),write(Start)
+	        getfpredicatename(P,C,N),  write(N), write('('),ppconstraint(PT,Start,A,_)
 	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 
 ppconstraint(PT,mto('F',[],C),A,P) :-
@@ -214,6 +258,7 @@ ppconstraint(PT,mto('G',[],C),A,P) :-
 	        getgpredicatename(P,C,N),  write(N), write('(1,Time,0,[')
 	       ,getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 ppconstraint(PT,ref(var(X),V),Attr,_):- getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),write(X),write(.),ppterm(V,NewAttr).
+ppconstraint(PT,not(C),Attr,_) :- write('not('),ppconstraint(PT,C,Attr,_),write(')').
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -225,12 +270,12 @@ ppconstraint(PT,uquant(I,Obj,C),Attr,Mto) :-
 		,write(':('),getobjattr(PT,Obj,Attr,Attributes),append(Attributes,Attr,NewAttr),ppconstraintlist(PT,C,NewAttr,Mto),write(')').
 
 ppconstraint(PT,enclosed(summation(In,Obj,C)),Attr,Mto) :-
-	        write('(sum '),write(In),write(' in '), write(Obj),
-		write(':('),getobjattr(PT,Obj,Attr,Attributes),append(Attributes,Attr,NewAttr),ppconstraint(PT,C,NewAttr,Mto),write('))').
+	        write('sum '),write(In),write(' in '), write(Obj),
+		write(':('),getobjattr(PT,Obj,Attr,Attributes),append(Attributes,Attr,NewAttr),ppconstraint(PT,C,NewAttr,Mto),write(')').
 
 ppconstraint(PT,summation(In,Obj,C),Attr,Mto) :-
-	        write('(sum '),write(In),write(' in '), write(Obj),
-		write(':('),getobjattr(PT,Obj,Attr,Attributes),append(Attributes,Attr,NewAttr),ppconstraintlist(PT,C,NewAttr,Mto),write('))').
+	        write('sum '),write(In),write(' in '), write(Obj),
+		write(':('),getobjattr(PT,Obj,Attr,Attributes),append(Attributes,Attr,NewAttr),ppconstraint(PT,C,NewAttr,Mto),write(')').
 
 ppconstraint(PT,condConstr(Constraint, Literals),Attr,Mto) :-
 		ppconstraintlist(PT,[Constraint],Attr,Mto), write(':-'),
@@ -242,7 +287,7 @@ ppconstraint(_,new(O,C,A),Attr,_) :-
 
 
 ppconstraint(PT,not(P),Attr,_) :-	write('not('), ppconstraint(PT,P,Attr,[]),write(')').
-ppconstraint(_,bool(P),Attr,_) :- ppterm(P,Attr).
+ppconstraint(PT,bool(P),Attr,_) :-  ppconstraint(PT,P,Attr,_).
 
 ppconstraint(_,builtinclpr(X),_,_) :- write(X).
 ppconstraint(_,T,A,_):- ppterm(T,A).
@@ -282,7 +327,7 @@ ppterm(sub(X, Y),A) :-
 ppterm(pow(X, Y),A) :-
    !, ppterm(X,A), write(' ^ '), ppterm(Y,A).
 
-
+ppterm(ind(var(X),Y),A) :- seriescheckvariable(A,X),ppterm(X),write('['),ppterm(Y,A),write(',T]').
 ppterm(ind(X,Y),A) :- !,ppterm(X),write('['),ppterm(Y,A),write(']').
 ppterm(enclosed(T),A) :-
    !, write('('), ppterm(T,A), write(')').
@@ -297,11 +342,34 @@ ppterm(ser(X)):- !,write(X),write('[T]').
 
 ppterm(ind(X,Y)) :- !,ppterm(X),write('['),ppterm(Y),write(']').
 ppterm(ser(X,_)) :- !,write(X).
+ppterm(next(ind(X,Y))) :-
+       !, ppterm(X), write('['),ppterm(Y),write(',T+1]').
+ppterm(prev(ind(X,Y))) :-
+       !, ppterm(X), write('['),ppterm(Y),write(',T-1]').
+
+
+ppterm(mult(X, Y)) :-
+   !, ppterm(X), write(' * '), ppterm(Y).
+ppterm(add(X, Y)) :-
+   !, ppterm(X), write(' + '), ppterm(Y).
+ppterm(divide(X, Y)) :-
+   !, ppterm(X), write(' / '), ppterm(Y).
+ppterm(sub(X, Y)) :-
+   !, ppterm(X), write(' - '), ppterm(Y).
+ppterm(pow(X, Y)) :-
+   !, ppterm(X), write(' ^ '), ppterm(Y).
+
+
 ppterm(next(V)) :-
        !, ppterm(V), write('[T+1]').
 
+
 ppterm(prev(V)) :-
        !, ppterm(V), write('[T-1]').
+
+ppterm(prev(V)) :-
+       !, ppterm(V), write('[T-1]').
+
 ppterm(at(V,I)) :- !,ppterm(V),write('['),write(I),write(']').
 
 ppterm(const(C)) :-
@@ -309,6 +377,9 @@ ppterm(const(C)) :-
 
 ppterm(const(M,N,Z)) :-
    !, write(M), write('.'), writeleading0(Z),write(N).
+ppterm(dnum(M,N,Z)) :-
+   !, write(M), write('.'), writeleading0(Z),write(N).
+
 ppterm(quotedString(S)) :-
    !, write('\''), write(S), write('\'').
 ppterm(var(V)) :-
@@ -419,10 +490,12 @@ pmtoargument(compare(R,Term1,Term2),PT,A,compare(R,RTerm1,RTerm2)):- pmtoterm(Te
 pmtoterm(compare(R,X,Y),PT,A,X) :- pmtoargument(compare(R,X,Y),PT,A,X).
 pmtoterm(add(X,Y),PT,A,add(RX,RY)) :-pmtoterm(X,PT,A,RX),pmtoterm(Y,PT,A,RY).
 pmtoterm(enclosed(X,Y),PT,A,enclosed(RX,RY)) :-pmtoterm(X,PT,A,RX),pmtoterm(Y,PT,A,RY).
-pmtoterm(var(X),A,_,ser(X,N)) :- seriescheckvariable(A,X),dcobseries(N).
+pmtoterm(var(X),_,A,ser(X,N)) :- seriescheckvariable(A,X),dcobseries(N).
 pmtoterm(var(X),_,_,var(X)).
 pmtoterm(ind(_,_),_,_,var(R)):- dcobind(R).
 pmtoterm(ref(var(X),var(Y)),PT,A,ser(X,N)):- getobjattr(PT,X,A,Attributes),append(Attributes,A,NewAttr),seriescheckvariable(NewAttr,Y),dcobseries(N).
+pmtoterm(next(_),_,_,var(R)) :- dcobnp(R).
+pmtoterm(prev(_),_,_,var(R)) :- dcobnp(R).
 pmtoterm(ref(_,var(Y)),_,_,var(Y)).
 pmtoterm(X,_,_,X).
 
@@ -712,12 +785,15 @@ constraint_atom(bool(B)) -->
    boolexpr(B).
 
 conditional_constraint(condConstr(Constraint, Literals)) -->
- constraint_atom(Constraint),[:-], {!},
+constraint_atom(Constraint) ,[:-], {!},
    literals(Literals).
+conditional_constraint(condConstr(Constraint, Literals)) -->
+literals(Literals),[-->], {!}, constraint_atom(Constraint).
 
 
-time_interval(time(X,Y)) --> [num(X)],[','],[num(Y)].
-time_interval(time(X)) --> [num(X)].
+
+time_interval(time(X,Y)) --> term(X),[','], term(Y).
+time_interval(time(X)) --> term(X).
 time_interval([]) --> [].
 
 
@@ -832,9 +908,14 @@ selector(In, next(X)) --> attribute_id(X),['`'], {In = ['$']}.
 selector(In, prev(X)) --> ['`'],attribute_id(X), {In = ['$']}.
 
 selector(In, at(X,T)) --> attribute_id(X),[<],[num(T)],[>],{In = ['$']}.
+selector(In, next(Ind)) --> attribute_id(X), ['['], terms(T), [']'],['`'], {In = ['$']}, {!}, {make_ind(X, T, Ind)}.
+selector(In, prev(Ind)) --> ['`'],attribute_id(X), ['['], terms(T), [']'], {In = ['$']}, {!}, {make_ind(X, T, Ind)}.
+
 
 
 selector(In, Ind) --> attribute_id(X), ['['], terms(T), [']'], {In = ['$']}, {!}, {make_ind(X, T, Ind)}.
+
+
 selector(In, sel(Name, X)) --> selector_id(Name), {!}, terms(X), {In = ['$']}.
        % Will this occur only at the
        % beginning of an attri ?
@@ -873,9 +954,11 @@ literals([L|T]) --> literal(L), [','], literals(T).
 literal(builtinclpr('nl')) --> [id('nl')], {!}.
 literal(not(A)) --> [not], atom(A).
 literal(A) --> atom(A).
-%Allowing for constraint-based info retrieval proj (sensors, targets)...Anand Ganesh
-literal(C) --> constraint(C).
-literal(not(C)) --> [not], constraint(C).
+% Allowing for constraint-based info retrieval proj (sensors,
+% targets)...Anand Ganesh%
+%Disable  to check the new form of conditional constraint- Jinesh
+%literal(C) --> constraint(C). literal(not(C))
+% --> [not], constraint(C).
 
 literal(mto('G',X,C)) --> ['G'],['<'],X,['>'],constraint(C).
 
@@ -1181,4 +1264,3 @@ enumerated(fromto(N, M)) --> digitsoridentifier(N), specialenum(_), digitsoriden
 
 digitsoridentifier(N) --> digits(num(N)).
 digitsoridentifier(X) --> identifier(id(X)).
-

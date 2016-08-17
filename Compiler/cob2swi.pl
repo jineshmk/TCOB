@@ -720,7 +720,7 @@ ppconstraint(pred(Name, Att)) :- ppconstraint(call(Name, Att)).
 %ppconstraint(not(P)) :- write('not('), ppconstraint(P), write(')').
 %How was the next clause working?? probably wasn't but didn't notice it
 %ppconstraint(not(P)) :- write('\+ '), ppconstraint(P).
-ppconstraint(not(P)) :- write('\\+ '), ppconstraint(P).
+ppconstraint(not(P)) :- write('\\+  '), ppconstraint(P).
 ppconstraint(bool(P)) :- ppterm(P).
 %expand write(Literals)
 ppconstraint(ifthenelse(Bool, If, Else)) :-
