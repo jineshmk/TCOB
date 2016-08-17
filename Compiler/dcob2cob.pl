@@ -225,7 +225,13 @@ ppconstraint(PT,divide(Term1, Term2),Attr,_) :-
 	         ppconstraint(PT,Term1,Attr,_), write('  '), write('/'), write('  '),ppconstraint(PT,Term2,Attr,_).
 ppconstraint(PT,enclosed(Term1),Attr,_) :-
 	write(' ( '), ppconstraint(PT,Term1,Attr,_),write(')').
-
+ppconstraint(PT,negative(Term1),Attr,_) :-
+	write(' - '), ppconstraint(PT,Term1,Attr,_).
+ ppconstraint(PT,function(Name, X),Attr,_) :-
+   !, write(Name),  write('('), ppconstraint(PT,X,Attr,_), write(')').
+   ppconstraint(PT,[X],Attr,_) :-  !, ppconstraint(PT,X,Attr,_).
+    ppconstraint(PT,[X|T],Attr,_) :-
+   !, ppconstraint(PT,X,Attr,_),write(','),ppconstraint(PT,T,Attr,_).
 
 ppconstraint(PT,constraintPred(N,X),A,_) :- write(N),write('('),pppredargument(PT,X,A),write(')').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -331,6 +337,10 @@ ppterm(ind(var(X),Y),A) :- seriescheckvariable(A,X),ppterm(X),write('['),ppterm(
 ppterm(ind(X,Y),A) :- !,ppterm(X),write('['),ppterm(Y,A),write(']').
 ppterm(enclosed(T),A) :-
    !, write('('), ppterm(T,A), write(')').
+ ppterm(negative(T)) :-
+   !, write('-'), ppterm(T).
+   ppterm(function(Name, X),A) :-
+   !, write(Name),  write('('), ppterms(X,A), write(')').
 %ppterms([X],A) :- ppterm(X,A).
 
 
