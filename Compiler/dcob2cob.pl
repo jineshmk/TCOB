@@ -101,6 +101,8 @@ getdecl(array(user(Type),Size),[Type,' ', Size]).
 
 dumpprint([]).
 %dumpprint([id(H)|T]) :-  write(H),dumpprint(T).
+%fix 24/8
+dumpprint([[H]]) :- integer(H),write('['),write(H),write(']').
 dumpprint([H|T]) :- ppterm(H,[]),dumpprint(T).
 
 %% Constraint translation
@@ -116,7 +118,7 @@ processconstraints1(ParseTree,Constraints,Attributes,Pred,Name,Time) :-
 processconstraints1(ParseTree,Constraints,Attributes,_,_,_) :- ppconstraintlist(ParseTree,Constraints,Attributes,_),write(';'),nl.
 
 handletimeloop(PT,Constraints,Attributes,Mtopredlist,Name,[X,Y]) :-
-	            getstarttime(Y,Name,Start),!,( Start>0 ->  nl,tab(1),write('forall T in '),write(Start),write('..'),write(X),write(':('),!,nl,tab(1),
+	            getstarttime(Y,Name,Start),!,( Start>0 ->  nl,tab(1),write('forall Time in '),write(Start),write('..'),write(X),write(':('),!,nl,tab(1),
 		    getmtoconstraints(Constraints,Mtopred),delete(Mtopred,[],Mtopredlist),
 		    ppconstraintlist(PT,Constraints,Attributes,Mtopredlist),nl,tab(1),write(');'),nl
 
@@ -234,34 +236,36 @@ ppconstraint(PT,negative(Term1),Attr,_) :-
    !, ppconstraint(PT,X,Attr,_),write(','),ppconstraint(PT,T,Attr,_).
 
 ppconstraint(PT,constraintPred(N,X),A,_) :- write(N),write('('),pppredargument(PT,X,A),write(')').
+ppconstraint(PT,pred(N,X),A,_) :- write(N),write('('),pppredargument(PT,X,A),write(')').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%Extract mtoconstraints and print predicate name
 %ppconstraint(PT,mto('G',time(Start,End),C),A,P) :-
 %		getgpredicatename(P,C,N), write(N),
 %		write('('),write(Start),write(','),write(End)
-%	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+%	       ,write(',Time,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 %
 ppconstraint(PT,mto('G',time(Start,End),C),A,P) :-
 		getgpredicatename(P,C,N), write(N),
 		write('('),ppconstraint(PT,Start,A,_),write(','),ppconstraint(PT,End,A,_)
-	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+	       ,write(',Time,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 
 ppconstraint(PT,mto('F',time(Start,End),C),A,P) :-
 	        getfpredicatename(P,C,N),  write(N),
 			write('('),ppconstraint(PT,Start,A,_),write(','),ppconstraint(PT,End,A,_)
-		,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+		,write(',Time,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 ppconstraint(PT,mto('G',time(Start),C),A,P) :-
-	        getgpredicatename(P,C,N),  write(N), write('('),ppconstraint(PT,Start,A,_),write(',Time')
-	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+	        getgpredicatename(P,C,N),  write(N), write('('),ppconstraint(PT,Start,A,_),write(',Time1')
+	       ,write(',Time,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 ppconstraint(PT,mto('F',time(Start),C),A,P) :-
 	        getfpredicatename(P,C,N),  write(N), write('('),ppconstraint(PT,Start,A,_)
-	       ,write(',T,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+	       ,write(',Time,['),getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 
 ppconstraint(PT,mto('F',[],C),A,P) :-
-	        getfpredicatename(P,C,N),  write(N), write('(1,Time,0,[')
+	        getfpredicatename(P,C,N),  write(N), write('(1,
+	        ,0,[')
 	       ,getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 ppconstraint(PT,mto('G',[],C),A,P) :-
-	        getgpredicatename(P,C,N),  write(N), write('(1,Time,0,[')
+	        getgpredicatename(P,C,N),  write(N), write('(1,Time1,0,[')
 	       ,getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 ppconstraint(PT,ref(var(X),V),Attr,_):- getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),write(X),write(.),ppterm(V,NewAttr).
 ppconstraint(PT,not(C),Attr,_) :- write('not('),ppconstraint(PT,C,Attr,_),write(')').
@@ -317,10 +321,10 @@ ppterms([X|T],[]) :- ppterm(X),!, write(','), ppterms(T).
 ppterms([X],A) :- ppterm(X,A).
 ppterms([X|T],A) :- ppterm(X,A), !,write(','), ppterms(T,A).
 ppterm((ref(prev(X),Y)),_) :-
-       !, ppterm(ref(X,Y)), write('[T-1]').
+       !, ppterm(ref(X,Y)), write('[Time-1]').
 ppterm(ref(X,V),A):- ppterm(X),!,write('.'),ppterm(V,A).
 ppterm(X,[]) :- ppterm(X).
-ppterm(var(X),Attr) :- seriescheckvariable(Attr,X),!, write(X),write('[T]').
+ppterm(var(X),Attr) :- seriescheckvariable(Attr,X),!, write(X),write('[Time]').
 ppterm(ser(_,Y),[1]):- write(Y).
 ppterm(mult(X, Y),A) :-
    !, ppterm(X,A), write(' * '), ppterm(Y,A).
@@ -347,15 +351,15 @@ ppterm(enclosed(T),A) :-
 ppterm(X,_) :- ppterm(X).
 ppterm(ref(X,V)):- ppterm(X),!,write('.'),ppterm(V).
 ppterm((ref(prev(X),Y))) :-
-       !, ppterm(ref(X,Y)), write('[T-1]').
-ppterm(ser(X)):- !,write(X),write('[T]').
+       !, ppterm(ref(X,Y)), write('[Time-1]').
+ppterm(ser(X)):- !,write(X),write('[Time]').
 
 ppterm(ind(X,Y)) :- !,ppterm(X),write('['),ppterm(Y),write(']').
 ppterm(ser(X,_)) :- !,write(X).
 ppterm(next(ind(X,Y))) :-
-       !, ppterm(X), write('['),ppterm(Y),write(',T+1]').
+       !, ppterm(X), write('['),ppterm(Y),write(',Time+1]').
 ppterm(prev(ind(X,Y))) :-
-       !, ppterm(X), write('['),ppterm(Y),write(',T-1]').
+       !, ppterm(X), write('['),ppterm(Y),write(',Time-1]').
 
 
 ppterm(mult(X, Y)) :-
@@ -371,14 +375,14 @@ ppterm(pow(X, Y)) :-
 
 
 ppterm(next(V)) :-
-       !, ppterm(V), write('[T+1]').
+       !, ppterm(V), write('[Time+1]').
 
 
 ppterm(prev(V)) :-
-       !, ppterm(V), write('[T-1]').
+       !, ppterm(V), write('[Time-1]').
 
 ppterm(prev(V)) :-
-       !, ppterm(V), write('[T-1]').
+       !, ppterm(V), write('[Time-1]').
 
 ppterm(at(V,I)) :- !,ppterm(V),write('['),write(I),write(']').
 
@@ -785,6 +789,9 @@ constraint_atom(compare(R, Term1, Term2)) -->
    term(Term2).
 %constraint_atom(compare(R, Term1, Term2)) --> term(Term1), [R], {relop(R)}, {!}, term(Term2).
 constraint_atom(constraintPred(Name, X)) -->
+   constraint_predicate_id(Name),
+   ['('], terms(X), [')'].
+   constraint_atom(pred(Name, X)) -->
    constraint_predicate_id(Name),
    ['('], terms(X), [')'].
 constraint_atom(compare(=, Term1, Term2)) -->

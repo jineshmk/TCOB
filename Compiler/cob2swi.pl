@@ -1,3 +1,5 @@
+%Change note
+% Fix to accept creational constraint without parameter(search for %fix Jinesh).
 :- module(cob2swi, [cob2swi/1]).
 %Changes made on 03.04.30 not reflected in translate.plg
 %03.04.30 : Commented two clauses of translateterm. Added 3rd clause containing !,fail to definition of typeof. Put cuts in translate, translateone, translateconstraints, translateterm.
@@ -491,7 +493,7 @@ translateterm(ind(C, T), L, C_T, Calls, P, Name, TypeC, _) :-
 translateterm(A, _L, A, [], [], _Name, real, _EType) :-
    A =..[const|_], !.
 %Next clause needed for translating attribute names and getting their type for ref(A,B) kind of terms.
-%Why don't I just call typeof(A,..) during translation of ref(A,B).
+%Why dont I just call typeof(A,..) during translation of ref(A,B).
 translateterm(A, L, A, [], [], Name, Type, EType) :-
    typeof(A, Name, L, EType, Type).
 translateterm(A, _, A, [], [], _, _, _) :- !.
@@ -502,7 +504,7 @@ translateterms([Par|Tail], L, [TPar|TTail], Calls, Preds, Name, Type, EType) :-
    translateterms(Tail, L, TTail, Cls, Pds, Name, Type, EType),
    append(C, Cls, Calls), append(P, Pds, Preds).
 
-%for now only array's are translated
+%for now only arrays are translated
 %translatetypedecl(Attributes, TD).
 translatetypedecl([att(array(_, N), var(V))|Rest],
                   [call('makearray', [N, V])|TRest]) :-
@@ -794,7 +796,9 @@ ppterm(functor(X)) :-
 %ppterm(functor(X)) :- !, write(X).
 ppterm([X|T]) :-
    write('['), ppterms([X|T]), write(']').
-ppterm([]).
+%fix Jinesh
+ppterm([]):-write('[]').
+%ppterm([]).
 ppterm(dangling(L)) :-
    write('['), ppterms(L), write('|'), write('_'), write(']').
 %ppterm(summation(V, E, Out)) :- !, write(
@@ -1092,6 +1096,8 @@ creational_constraint(new(T1, Name, Args)) -->
    class_id(Name),
    ['('], terms(Args), [')'].
 
+
+
 %change name to uquant and equant...done
 quantified_constraint(uquant(V, E, LX)) -->
    [forall], {!},
@@ -1160,6 +1166,7 @@ relop('==').
 infixop(*).
 infixop(^).
 infixop(/).
+
 infixop(-).
 infixop(+).
 
@@ -1272,6 +1279,8 @@ selector_id(fst) --> [first].
 selector_id(nxt) --> [next].
 selector_id(lst) --> [last].
 
+%fix Jinesh
+terms([])  -->[].
 terms([X]) --> term(X).
 terms([X|T]) --> term(X), [','], {!}, terms(T). %make sure this cut is correct
 
@@ -1325,13 +1334,14 @@ constructors(Constructors) --> [constructor], {!}, {seen('constructor: near cons
 constructors([]) --> [].
 
 
-constructor_clauses([constructor(Name, Attributes, ConstructorConstraintList)|T]) -->
-   class_id(Name), {seterrormessage(_), namematch(Name)}, ['('], id_list(_,Attributes), [')'], ['{'], %resetkeywordclausecounter(_)},
-   constraint_list(ConstructorConstraintList), ['}'], constructor_clauses(T). %correct call to id_list
 constructor_clauses([constructor(Name, [], ConstructorConstraintList)|T]) -->
    class_id(Name), {seterrormessage(_), namematch(Name)}, ['('], [')'], ['{'], %resetkeywordclausecounter(_)},
    constraint_list(ConstructorConstraintList), ['}'], constructor_clauses(T). %correct call to id_list
 constructor_clauses([]) --> [].
+constructor_clauses([constructor(Name, Attributes, ConstructorConstraintList)|T]) -->
+   class_id(Name), {seterrormessage(_), namematch(Name)}, ['('], id_list(_,Attributes), [')'], ['{'], %resetkeywordclausecounter(_)},
+   constraint_list(ConstructorConstraintList), ['}'], constructor_clauses(T). %correct call to id_list
+
 
 seterrormessage(_) :- classnamecounter(_), seen('constructor, the constructor name does not match class name in constructor # '). %why are we counting classnamecounter ?
 
