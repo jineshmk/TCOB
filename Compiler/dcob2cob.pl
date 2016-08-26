@@ -236,7 +236,7 @@ ppconstraint(PT,negative(Term1),Attr,_) :-
    !, ppconstraint(PT,X,Attr,_),write(','),ppconstraint(PT,T,Attr,_).
 
 ppconstraint(PT,constraintPred(N,X),A,_) :- write(N),write('('),pppredargument(PT,X,A),write(')').
-ppconstraint(PT,pred(N,X),A,_) :- write(N),write('('),pppredargument(PT,X,A),write(')').
+%ppconstraint(PT,pred(N,X),A,_) :- write(N),write('('),pppredargument(PT,X,A),write(')').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%Extract mtoconstraints and print predicate name
 %ppconstraint(PT,mto('G',time(Start,End),C),A,P) :-
@@ -980,7 +980,7 @@ literal(A) --> atom(A).
 literal(mto('G',X,C)) --> ['G'],['<'],X,['>'],constraint(C).
 
 
-atom(pred(Name, X)) --> predicate_id(Name), ['('], terms(X), [')']. %incorrect
+%atom(pred(Name, X)) --> predicate_id(Name), ['('], terms(X), [')']. %incorrect
 atom(X) --> constraint_atom(X).
 
 class_id(X) --> [id(X)].

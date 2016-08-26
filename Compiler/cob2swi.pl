@@ -162,7 +162,7 @@ translateconstraints([condConstr(Constraint, Literals)|Rest], L,
    !, translateconstraints([Constraint], L, [FirstC|TC], P1, Name, EType),
    translateliterals(Literals, L, Callsbefore, TLiterals, P2, Name, EType),
    translateconstraints(Rest, L, TRest, P3, Name, EType), append(P1, P2, P4), append(P4, P3, P5),
-   append(TC, Callsbefore, TCL), append(TCL, [condConstr([FirstC], TLiterals)], TCLCC), append(TCLCC, TRest, TRest1).
+append(TC, Callsbefore, TCL), append(TCL, [condConstr([FirstC], TLiterals)], TCLCC), append(TCLCC, TRest, TRest1).
 %pprint this
 translateconstraints([new(T1, Class, Pars)|Rest], L, Calls, P, Name, EType) :-
    !, % BJ: change the first argument as follows:
@@ -276,6 +276,8 @@ translateconstraints([constraintPred(CPName,Terms)|Rest], L, CorrectedOrderofCal
    append(Cl1, [constraintPred(CPName, TTerms)], Calls),
    append(Calls, TRest, CorrectedOrderofCalls).
 
+
+
 translateconstraints([compare(R, Term1, Term2)|Rest], L, [compare(R, T1, T2)|CTRest], P, Name, EType) :-
    !, translateterm(Term1, L, T1, Cl1, P1, Name, _, EType),
       translateterm(Term2, L, T2, Cl2, P2, Name, _, EType),
@@ -338,6 +340,22 @@ translateliterals([Lit|RestL], L, Callsbefore, TLiterals, P3, Name, EType) :-
    append(P1, P2, P3),
    append([FirstL|TL], Callsbefore1, Callsbefore).
 
+%fix Jinesh to solve issue with predicate and index 26/8/16
+translateliterals([Lit|RestL], L, TLiterals, Callsbefore, P3, Name, EType) :-
+Lit =..[ConstraintPred|_],
+(ConstraintPred=..[constraintPred|_]),
+   translateconstraints([Lit], L, [FirstL|TL], P1, Name, EType),
+   translateliterals(RestL, L, Callsbefore1, TRestL, P2, Name, EType),
+   FirstL=..[call,index|_],
+   append([FirstL], TRestL, TLiterals), append(P1, P2, P3), append(TL, Callsbefore1, Callsbefore).
+translateliterals([not(Lit)|RestL], L, TLiterals, Callsbefore, P3, Name, EType) :-
+Lit =..[ConstraintPred|_],
+(ConstraintPred=..[constraintPred|_]),
+   translateconstraints([Lit], L, [FirstL|[TL]], P1, Name, EType),
+   translateliterals(RestL, L, Callsbefore1, TRestL, P2, Name, EType),
+    FirstL=..[call,index|_],
+   append([FirstL], TRestL, TLiterals), append(P1, P2, P3), append([not(TL)], Callsbefore1, Callsbefore).
+   
 translateliterals([Lit|RestL], L, Callsbefore, TLiterals, P3, Name, EType) :-
    translateconstraints([Lit], L, [FirstL|TL], P1, Name, EType),
    translateliterals(RestL, L, Callsbefore1, TRestL, P2, Name, EType),
@@ -1294,7 +1312,8 @@ literal(A) --> atom(A).
 literal(C) --> constraint(C).
 literal(not(C)) --> [not], constraint(C).
 
-atom(pred(Name, X)) --> predicate_id(Name), ['('], terms(X), [')']. %incorrect
+%fix commented
+%atom(pred(Name, X)) --> predicate_id(Name), ['('], terms(X), [')']. %incorrect
 atom(X) --> constraint_atom(X).
 
 class_id(X) --> [id(X)].
