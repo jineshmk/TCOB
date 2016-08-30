@@ -75,11 +75,12 @@ index([_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,X|_], 28, X) :- !.
 index([_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,X|_], 29, X) :- !.
 index([_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,X|_], 30, X) :- !.
 index(Array, Index, Value) :-
-	Index > 30, index(Array, 1, Index, Value).
+	Index > 30 ,index(Array, 1, Index, Value).
+
 
 index([X|_], I, I, X) :- !.
 index([_|T], I, N, X) :-
-	J is I + 1,
+	J is I + 1, J=<N,
 	index(T, J, N, X).
 
 output([]).
@@ -131,10 +132,13 @@ cobG(Lo,Lo,T,C,Val).
 
 
 % ------------------------------------------------------
-removevar([], []).                  
+removevar([], []).
 removevar([X|Xs], Z) :- var(X), removevar(Xs, Z), !.
 removevar([X|Xs], [X|Zs]) :- removevar(Xs,Zs).
 
+removevar([], 0).
+removevar([X|Xs], Z) :- var(X), removevar(Xs, Z), !.
+removevar([X|Xs], [X|Zs]) :- removevar(Xs,Zs).
 
 plot_graph(Title,L,XLo,XHi,YLo,YHi,Width,Height,Spacing,TG) :-
         removevar(L,LN),
@@ -155,16 +159,21 @@ plot_function([Y|T], X, G,TG) :-
         plot_function(T, X2, G,TG).
 %===File write
 dump_to_file([],[]).
-dump_to_file(N,V) :-  
-            open('output.csv',write,Stream),write_to_file(Stream,N,V),
+dump_to_file(N,V) :-
+            open('output.csv',append,Stream),write_to_file(Stream,N,V),
             close(Stream).
 write_to_file(_,[[]],_).
 write_to_file(Stream,[N],[[V]]):-
             write_to_file(Stream,[N],[V]).
-write_to_file(Stream,[Name|Tail],[X|T]) :- 
+write_to_file(Stream,[Name|Tail],[X|T]) :-
             write(Stream,Name),write(Stream,','),
             removevar(X,NX),dumpval(Stream,NX),put(Stream,10),
-            write_to_file(Stream,[Tail],[T]).         
+            write_to_file(Stream,[Tail],[T]).
 dumpval(_,[]).
-dumpval(Stream,[X|T]) :- 
+dumpval(Stream,[X|T]) :-
             write(Stream,X),write(Stream,','),dumpval(Stream,T).
+
+addval(H,V) :- var(H),{H=V}.
+addtoarray([H|_] , V ):- addval(H,V).
+
+addtoarray([_|T],V ) :- addtoarray(T,V).

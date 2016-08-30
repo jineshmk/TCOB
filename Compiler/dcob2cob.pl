@@ -9,7 +9,7 @@ tcob2cob(File) :-
    atom_codes(Prefix,FileCodes),
    atom_concat(Prefix, '.cob', Output),
    dcob2cob(File,Output).
-   
+
 dcob2cob(File) :-
    atom_codes(File, FullCodes),
    atom_codes('.dcob',S),
@@ -96,6 +96,10 @@ getdecl(array(series(user(Type)),Size),[Type, ' [',Size,'][]']).
 getdecl(series(user(Type)),[Type, ' []']).
 getdecl(array(primitive(Type),1),[Type,' []']).
 getdecl(array(user(Type),1),[Type,' []']) .
+%fix 30/8
+getdecl(array(primitive(Type), [Size1,1]),[Type,'  [',Size1,'][]'] ) .
+getdecl(array(primitive(Type), [Size1,Size2]),[Type,'  [',Size1,'][',Size2,']'] ) .
+getdecl(array(user(Type), [Size1,Size2]),[Type,'  [',Size1,'][',Size2,']'] ) .
 getdecl(array(primitive(Type), Size),[Type,' ',Size] ) .
 getdecl(array(user(Type),Size),[Type,' ', Size]).
 
@@ -268,6 +272,7 @@ ppconstraint(PT,mto('G',[],C),A,P) :-
 	        getgpredicatename(P,C,N),  write(N), write('(1,Time1,0,[')
 	       ,getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 ppconstraint(PT,ref(var(X),V),Attr,_):- getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),write(X),write(.),ppterm(V,NewAttr).
+ppconstraint(PT,ref(ind(var(X),I),V),Attr,_):- getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),ppterm(ind(var(X),I),NewAttr),write(.),ppterm(V,NewAttr).
 ppconstraint(PT,not(C),Attr,_) :- write('not('),ppconstraint(PT,C,Attr,_),write(')').
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -337,6 +342,7 @@ ppterm(sub(X, Y),A) :-
 ppterm(pow(X, Y),A) :-
    !, ppterm(X,A), write(' ^ '), ppterm(Y,A).
 
+   %fix 30/8
 ppterm(ind(var(X),Y),A) :- seriescheckvariable(A,X),ppterm(X),write('['),ppterm(Y,A),write(',T]').
 ppterm(ind(X,Y),A) :- !,ppterm(X),write('['),ppterm(Y,A),write(']').
 ppterm(enclosed(T),A) :-
@@ -354,6 +360,7 @@ ppterm((ref(prev(X),Y))) :-
        !, ppterm(ref(X,Y)), write('[Time-1]').
 ppterm(ser(X)):- !,write(X),write('[Time]').
 
+ppterm(ind(ind(X,Y),Z)) :- !,ppterm(X),write('['),ppterm(Y),write(','),ppterm(Z),write(']').
 ppterm(ind(X,Y)) :- !,ppterm(X),write('['),ppterm(Y),write(']').
 ppterm(ser(X,_)) :- !,write(X).
 ppterm(next(ind(X,Y))) :-
@@ -600,7 +607,7 @@ removenumbers([X|T], [X|RT]) :-
 
 
 
-% ------------------ SYNTAX ANALYZER FOR COB ---------------------------
+% ------------------ SYNTAX ANALYZER FOR TCOB ---------------------------
 
 % This is the Cob to CLPR Translator, written by Pallavi Tambay
 % with minor changes by Bharat Jayaraman.
@@ -692,6 +699,7 @@ type(user(Type)) --> class_id(Type). %% verification here will enforce order, he
 arraytype(X, 0, X) --> [].
 arraytype(X, N, array(X, N)) -->
    [], {number(N)}.
+
 arraytype(X, N, Z) -->
    ['[]'], {N1 is N+1}, arraytype(X, N1, Z).
 arraytype(X, 0, Z) -->
@@ -700,6 +708,9 @@ arraytype(X, L, array(X, L)) -->
    [].
 arraytype(X, L, Z) -->
    ['['], [num(S)], [']'], {append(L,[S],L1)}, arraytype(X, L1, Z).
+
+
+
 arraytype(X, L, Z) -->
    ['['], [id(V)],  [']'], {append(L,[V],L1)}, arraytype(X, L1, Z).
 
@@ -942,6 +953,7 @@ selector(In, sel(Name, X)) --> selector_id(Name), {!}, terms(X), {In = ['$']}.
 selector(In, Ind) --> attribute_id(X), ['['], terms(T), [']'], {!},
 			{make_ind(ref(In, X), T, Ind)}, {\+(In = ['$'])}.
 selector(In, ref(In, next(X))) --> attribute_id(X), ['`'],{!}, {\+(In = ['$'])}.
+selector(In, ref(In, at(X,T))) --> attribute_id(X), [<],[num(T)],[>],{!}, {\+(In = ['$'])}.
 
 selector(In, ref(In, X)) --> attribute_id(X), {!}, {\+(In = ['$'])}.
 %use of next clause is not known, hence may be incorrect

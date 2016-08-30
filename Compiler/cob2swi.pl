@@ -159,7 +159,7 @@ translateconstraints([], _, [], [], _, _) :- !.
 %next clause modified from sunnyvale
 translateconstraints([condConstr(Constraint, Literals)|Rest], L,
                      TRest1, P5, Name, EType) :- %translate Constraints & Literals!!
-   !, translateconstraints([Constraint], L, [FirstC|TC], P1, Name, EType),
+   !, translateconstraints1([Constraint], L, [FirstC|TC], P1, Name, EType),
    translateliterals(Literals, L, Callsbefore, TLiterals, P2, Name, EType),
    translateconstraints(Rest, L, TRest, P3, Name, EType), append(P1, P2, P4), append(P4, P3, P5),
 append(TC, Callsbefore, TCL), append(TCL, [condConstr([FirstC], TLiterals)], TCLCC), append(TCLCC, TRest, TRest1).
@@ -266,6 +266,19 @@ translateconstraints([equant(V, E, LX)|Rest], L, [call(Exists, [E, functor(SLX)]
                                 ['fail'])])],
    append(P1, P2, P).
 
+ translateconstraints1([constraintPred(CPName,Terms)|Rest], L, CorrectedOrderofCalls, P, Name, EType) :-
+   !, translateterms(Terms, L, TTerms, Cl1, P1, Name, _, EType),
+   translateconstraints(Rest, L, TRest, P2, Name, EType), append(P1, P2, P),
+append( [constraintPred(CPName, TTerms)],Cl1, Calls),
+   append(Calls, TRest, CorrectedOrderofCalls).
+
+translateconstraints1([not(constraintPred(CPName,Terms))|Rest], L, CorrectedOrderofCalls, P, Name, EType) :-
+   !, translateterms(Terms, L, TTerms, Cl1, P1, Name, _, EType),
+   translateconstraints(Rest, L, TRest, P2, Name, EType), append(P1, P2, P),
+append( [not(constraintPred(CPName, TTerms))],Cl1, Calls),
+   append(Calls, TRest, CorrectedOrderofCalls).
+   translateconstraints1(Lit,L, P, P1,Name, EType) :-       translateconstraints(Lit, L, P, P1, Name, EType).
+
 translateconstraints([constraintPred(CPName,Terms)|Rest], L, CorrectedOrderofCalls, P, Name, EType) :-
    !, translateterms(Terms, L, TTerms, Cl1, P1, Name, _, EType),
    translateconstraints(Rest, L, TRest, P2, Name, EType), append(P1, P2, P),
@@ -273,7 +286,8 @@ translateconstraints([constraintPred(CPName,Terms)|Rest], L, CorrectedOrderofCal
 %  Calls appended in front of constraintPred(..,..) so that the arguments of dump/1 are unified to
 %  their translated term before their values are printed.
 %  changed order slightly on May 16th 2003.
-   append(Cl1, [constraintPred(CPName, TTerms)], Calls),
+%append([constraintPred(CPName, TTerms)],Cl1,Calls),
+append(Cl1, [constraintPred(CPName, TTerms)], Calls),
    append(Calls, TRest, CorrectedOrderofCalls).
 
 
@@ -340,24 +354,25 @@ translateliterals([Lit|RestL], L, Callsbefore, TLiterals, P3, Name, EType) :-
    append(P1, P2, P3),
    append([FirstL|TL], Callsbefore1, Callsbefore).
 
-%fix Jinesh to solve issue with predicate and index 26/8/16
-translateliterals([Lit|RestL], L, TLiterals, Callsbefore, P3, Name, EType) :-
-Lit =..[ConstraintPred|_],
-(ConstraintPred=..[constraintPred|_]),
-   translateconstraints([Lit], L, [FirstL|TL], P1, Name, EType),
-   translateliterals(RestL, L, Callsbefore1, TRestL, P2, Name, EType),
-   FirstL=..[call,index|_],
-   append([FirstL], TRestL, TLiterals), append(P1, P2, P3), append(TL, Callsbefore1, Callsbefore).
-translateliterals([not(Lit)|RestL], L, TLiterals, Callsbefore, P3, Name, EType) :-
-Lit =..[ConstraintPred|_],
-(ConstraintPred=..[constraintPred|_]),
-   translateconstraints([Lit], L, [FirstL|[TL]], P1, Name, EType),
-   translateliterals(RestL, L, Callsbefore1, TRestL, P2, Name, EType),
-    FirstL=..[call,index|_],
-   append([FirstL], TRestL, TLiterals), append(P1, P2, P3), append([not(TL)], Callsbefore1, Callsbefore).
-   
+
+
+
+
+
+
+
+%translateliterals([constraintPred(CPName,Terms)|Rest], L, Callsbefore, TLiterals, P3, Name, EType) :-
+   % translateterms(Terms, L, TTerms, Cl1, P1, Name, _, EType),
+   %translateliterals(RestL, L, Callsbefore1, TRestL, P2, Name, EType),
+   %append( [constraintPred(CPName, TTerms)], TRestL, TLiterals), append(P1, P2, P3), append(Cl1, Callsbefore1, Callsbefore).
+
+%translateliterals([not(constraintPred(CPName,Terms))|Rest], L, Callsbefore, TLiterals, P3, Name, EType) :-
+    %translateterms(Terms, L, TTerms, Cl1, P1, Name, _, EType),
+   %translateliterals(RestL, L, Callsbefore1, TRestL, P2, Name, EType),
+   %append( [not(constraintPred(CPName, TTerms))], TRestL, TLiterals), append(P1, P2, P3), append(Cl1, Callsbefore1, Callsbefore).
+
 translateliterals([Lit|RestL], L, Callsbefore, TLiterals, P3, Name, EType) :-
-   translateconstraints([Lit], L, [FirstL|TL], P1, Name, EType),
+   translateconstraints1([Lit], L, [FirstL|TL], P1, Name, EType),
    translateliterals(RestL, L, Callsbefore1, TRestL, P2, Name, EType),
    append([FirstL], TRestL, TLiterals), append(P1, P2, P3), append(TL, Callsbefore1, Callsbefore).
 
@@ -570,6 +585,7 @@ revassoc(V, [_|T], Type) :- revassoc(V, T, Type).
 
 % prefix expects an Atom as the first argument, a list of Atoms as the second argument
 prefix(_, [], []).
+prefix([], _, []).
 %change for sicstus : concat_atom changed to atom_concat
 %prefix(V, [X|T], [V_X|PreT]) :-
 %   concat_atom([V,'_'], V_), concat_atom([V_, X], V_X), (nonvar(T) -> prefix(V, T, PreT); PreT = T). % CORRECT ??
