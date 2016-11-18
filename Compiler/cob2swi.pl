@@ -552,10 +552,13 @@ translatetypedecl([], []).
 
 translateindex(Calls1,CT,TT,C_T, Calls) :-
        isCobvarorConst(TT), !,
-       append(Calls1, [call('index', [CT, TT, C_T])], Calls).
+      % append(Calls1, [call('index', [CT, TT, C_T])], Calls).
+         append(Calls1, [call('index', [TT,CT, C_T])], Calls).
 translateindex(Calls1,CT,TT,C_T, Calls) :-  % TT is some arithmetic expression
        cobvar(R), cobvar(I),
-       append(Calls1, [compare('=',R, TT), r2i(R,I), call('index', [CT, I, C_T])], Calls).
+       append(Calls1, [compare('=',R, TT), r2i(R,I), call('index', [I,CT, C_T])], Calls).
+
+      % append(Calls1, [compare('=',R, TT), r2i(R,I), call('index', [CT, I, C_T])], Calls).
 
 isCobvarorConst(TT) :- atom(TT), !.
 isCobvarorConst(const(N)) :- integer(N).
