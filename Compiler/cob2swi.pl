@@ -136,6 +136,8 @@ translateone(Name, Superclass, Attributes, Constraints, L, [pred(Name, [], AttLi
 % member is the type of that variable.
 % This predicate removes the type from each tuple in a list and returns just the list of variables.
 removetypedecl([],[]).
+%enum handling added on 3/12/2016
+%removetypedecl([att(user(enum), _)|T], Y) :- removetypedecl(T, Y).
 removetypedecl([att(_, X)|T], [X | Y]) :- removetypedecl(T, Y).
 
 % Given class name Name, searches the parse tree L to return the list of attributes of Name

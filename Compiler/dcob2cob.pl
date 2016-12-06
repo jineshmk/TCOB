@@ -484,15 +484,15 @@ writemtopredicates1(X,PT,A) :- ppmtopredicate(X,PT,A),write('.'),nl.
 %Index for series variable
 writeindex([],_).
 writeindex([H|T],I) :-writeindex(H,I),writeindex(T,I).
-writeindex(ser(X,Y),I):- write('index('),write(X),write(','),write(I),write(','),write(Y),write('),').
+writeindex(ser(X,Y),I):- write('index('),write(I),write(','),write(X),write(','),write(Y),write('),').
 writeindex(_,_).
 printgpredicate(N,C,PT,A) :- writedefaultG(N),nl,write(N),write('( Lo,Hi,T,['),
 	pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),writeargumentlist(VarList),
-	write(']) :- Lo<Hi,'),dcobindex(I),write(I),write(' is Lo+T,'),writeindex(VarList,I),
-	(checkquotedstring(C) -> ppconstraint(_,R,[1],_);write('{'),ppconstraint(_,R,[1],_),write('}')),write(',Lo1 is Lo+1,'),write(N),write('( Lo1,Hi,T,['),
+	write(']) :- Hi1 is ceil(Hi),Lo<Hi1,'),dcobindex(I),write(I),write(' is Lo+T,'),writeindex(VarList,I),
+	(checkquotedstring(C) -> ppconstraint(_,R,[1],_);write('{'),ppconstraint(_,R,[1],_),write('}')),write(',Lo1 is Lo+1,'),write(N),write('( Lo1,Hi1,T,['),
 	writeargumentlist(VarList),write('])').
 printfpredicate(N,C,PT,A) :- write(N),write('( Lo,Hi,T,['),pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),
-	writeargumentlist(VarList),write(']) :- random(Lo,Hi,S),'),dcobindex(I),write(I),write( ' is T+S,'),
+	writeargumentlist(VarList),write(']) :- Hi1 is ceil(Hi),random(Lo,Hi1,S),'),dcobindex(I),write(I),write( ' is T+S,'),
 	writeindex(VarList,I),(checkquotedstring(C) -> ppconstraint(_,R,[1],_);write('{'),ppconstraint(_,R,[1],_),write('}')).
 
 ppmtopredicate(dcobG(N,time(_,_),C),PT,A) :- printgpredicate(N,C,PT,A).
@@ -501,10 +501,10 @@ ppmtopredicate(dcobG(N,[],C),PT,A) :- printgpredicate(N,C,PT,A).
 ppmtopredicate(dcobF(N,time(_,_),C),PT,A) :-printfpredicate(N,C,PT,A).
 ppmtopredicate(dcobF(N,[],C),PT,A) :-printfpredicate(N,C,PT,A).
 ppmtopredicate(dcobF(N,time(_),C),PT,A) :-write(N),write('( Lo,T,['),pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),
-	writeargumentlist(VarList),write(']) :-'),dcobindex(I),write(I),write(' is T+Lo,'),
+	writeargumentlist(VarList),write(']) :-'),dcobindex(I),write(I),write(' is round(T+Lo),'),
 	writeindex(VarList,I),(checkquotedstring(C) -> ppconstraint(_,R,[1],_);write('{'),ppconstraint(_,R,[1],_),write('}')).
 
-writedefaultG(N) :- write(N),write('(Lo,Lo,_,_):-!.'),nl.
+writedefaultG(N) :- write(N),write('(Lo,Lo,_,_):-!.'),nl,write(N),write('(Lo,Hi,_,_):-Lo>=Hi,!.'),nl.
 
 pmtoargument(compare(R,Term1,Term2),PT,A,compare(R,RTerm1,RTerm2)):- pmtoterm(Term1,PT,A,RTerm1),pmtoterm(Term2,PT,A,RTerm2).
 
@@ -693,6 +693,7 @@ type(primitive(string)) --> [id('string')].
 type(primitive(bool)) --> [id('bool')].
 type(primitive(formula)) --> [id('formula')].
 type(primitive(expr)) --> [id('expr')].
+%type(primitive(enum)) --> [id('enum')].
 
 type(user(Type)) --> class_id(Type). %% verification here will enforce order, hence verify later ?
 
@@ -979,6 +980,7 @@ terms([X|T]) --> term(X), [','], {!}, terms(T). %make sure this cut is correct
 
 literals([L]) --> literal(L).
 literals([L|T]) --> literal(L), [','], literals(T).
+literals([L|T]) --> literal(L), ['&'], literals(T).
 
 literal(builtinclpr('nl')) --> [id('nl')], {!}.
 literal(not(A)) --> [not], atom(A).
@@ -1191,6 +1193,7 @@ special('[]',[91,93|L],L).
 special('[',[91|L],L).
 special(']',[93|L],L).
 special('$',[36|L],L).
+special('&',[38|L],L).
 
 special('->',[45,62|L],L). %order matters otherwise - and > will be made separate tokens
 special('-->',[45,45,62|L],L).
