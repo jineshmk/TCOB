@@ -1,7 +1,7 @@
 # TCOB Compiler
 - Download and install Swi-prolog from http://www.swi-prolog.org/download/stable  
 
-- Download the compiler code and move the four files(main.pl,dcob2cob.pl,cob2swi.pl) to your prolog working directory
+- Download the compiler code and move the four files(main.pl,dcob2cob.pl,cob2swi.pl,helper_clpr.pl) to your prolog working directory
 -  Open swi prolog environment and load the compiler code using below command.
 ```sh
 ?- [main]
