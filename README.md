@@ -22,7 +22,12 @@ This predicates create a prolog file with same as the TCOB program. (eg: test.pl
 
 ### Step 3
 
-Now you can oad compiled code(prolog file) to prolog environment using standard prolog load command.
+Load compiled code(prolog file) to prolog environment using standard prolog load command.
 ```sh
 ?- [test]
 ```
+Now you can invoke the program using the driver(main) class predicates int the CLP program. It has two arguments, first arguments represent the list of attributes in the class and second arguments denote the list of arguments to the constructor. If you are not taking any input values, it can represent by _ character 
+```sh
+?- test(_,_).
+```
+
