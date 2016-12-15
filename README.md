@@ -7,12 +7,14 @@ The TCOB compiler builts up on the SWI-prolog implementation. In order work with
 
 ### Step 1
 Download the compiler code and move the four files(main.pl,dcob2cob.pl,cob2swi.pl,helper_clpr.pl) to your prolog working directory
--  Open swi prolog environment and load the compiler
+Open swi prolog environment and load the compiler
 ```sh
+$swipl
 ?- [main]
 ```
-It loads the TCOB compiler into the current prolog environment.Now you can compiler your TCOB program(with.tcob extension)
-- Compile TCOB using tcob2swi('tcobfile.tcob') command. It creates a prolog file with same name as the TCOB program 
+It loads the TCOB compiler into the current prolog environment. Now you can compile the TCOB program(with.tcob extension)
+### Step 2
+- Compile TCOB using tcob2swi('tcobfile.tcob') command. It takes the TCOB program as the input and creates the corresponding CLP program as the output
 ```sh
 ?- tcob2swi('test.tcob').
 ```
