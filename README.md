@@ -14,12 +14,15 @@ $swipl
 ```
 It loads the TCOB compiler into the current prolog environment. Now you can compile the TCOB program(with.tcob extension)
 ### Step 2
-- Compile TCOB using tcob2swi('tcobfile.tcob') command. It takes the TCOB program as the input and creates the corresponding CLP program as the output
+Compile TCOB using tcob2swi('tcobfile.tcob') command. It takes the TCOB program as the input and creates the corresponding CLP program as the output
 ```sh
 ?- tcob2swi('test.tcob').
 ```
-- Load compiled code(prolog file) to current prolog environment and call the constructor of TCOB driver class
+This predicates create a prolog file with same as the TCOB program. (eg: test.pl)
+
+### Step 3
+
+Now you can oad compiled code(prolog file) to prolog environment using standard prolog load command.
 ```sh
 ?- [test]
-?- test(_,_)
 ```
