@@ -1,5 +1,5 @@
 # TCOB Compiler
-- The TCOB compiler builts up on the SWI-prolog implementation. In order work with the compiler, the system must have a latest swi-prolog installation. You can download and install Swi-prolog from http://www.swi-prolog.org/download/stable. The user-manual and documentation of Swi-prolog available on http://www.swi-prolog.org/pldoc/index.htm. The TCOB compiler has four files
+The TCOB compiler builts up on the SWI-prolog implementation. In order work with the compiler, the system must have a latest swi-prolog installation. You can download and install Swi-prolog from http://www.swi-prolog.org/download/stable. The user-manual and documentation of Swi-prolog available on http://www.swi-prolog.org/pldoc/index.htm. The TCOB compiler has four files
 
 * dcob2cob.pl,cob2swi.pl - TCOB compiler code, which convert TCOB program into CLP program
 * main.pl- Used to load compiler code to prolog environment
