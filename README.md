@@ -17,7 +17,7 @@ Compile TCOB using tcob2swi/2 command. It takes the TCOB program and driver clas
 ```sh
 ?- tcob2swi('test.tcob','test()').
 ```
-This predicates create a prolog file with same as the TCOB program. (eg: test.pl)
+This predicates create a prolog file with same as the TCOB program.
 
 ### Step 3
 
