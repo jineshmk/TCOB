@@ -9,7 +9,7 @@ Download the compiler code and move into the two files(tcob2swi.pl, helper_clpr.
 Open swi prolog environment and load the compiler
 ```sh
 $swipl
-?- [tcob2swi]
+?- [tcob2swi].
 ```
 It loads the TCOB compiler into the current prolog environment. Now you can compile the TCOB program(with.tcob extension)
 ### Step 2
