@@ -10,7 +10,7 @@ tcob2swi(File,Driver) :- atom_codes(File, FullCodes),
    atom_codes(Prefix,FileCodes),
    atom_concat(Prefix, '.cob', CobOutput),
    tcob2cob(File,Driver),!,cob2swi(CobOutput).
-%TCOB To COB translation
+%---TCOB To COB translation
 tcob2cob(File,Driver) :-
    atom_codes(File, FullCodes),
    atom_codes('.tcob',S),
@@ -30,15 +30,15 @@ process(Stream, Output,Driver) :-
    tell(Output),
    translatetcob(ParseTree,Driver),!,nl,write('$'),
    told.
-%translate the program and write main class
+%---translate the program and write main class
 translatetcob([time(X,Y,Z)|T],Driver):-
    translatetcobprog(T,T,Z),processmain(Driver,[X,Y]).
-%translate each class(X) of the program
+%---translate each class(X) of the program
 translatetcobprog([],_,_).
 translatetcobprog([X|T],ParseTree,SkipList) :-
    translatetcobclass(X,ParseTree,SkipList),!,nl,nl,
    translatetcobprog(T,ParseTree,SkipList).
-%translate TCOB Class
+%---translate TCOB Class
 translatetcobclass(classdef(Name,Superclass, Attributes, Constraints,
   Predicates, Constructors, _),ParseTree,SkipList) :-
    writeclass(Name),processuperclass(Superclass),
@@ -47,7 +47,7 @@ translatetcobclass(classdef(Name,Superclass, Attributes, Constraints,
    processtcobconstri(ParseTree,Constraints,Attr,Mtoconstraints,Name,SkipList),
    processtcobpredicates(Predicates,Mtoconstraints,ParseTree,Attr),
    processtcobconstructor(Constructors),nl,write('}').
-%Write class name in COB program
+%---Write class name to COB program
 writeclass(abstract(Name)):-
    write('abstract class '),write(Name).
 writeclass(Name) :-
@@ -57,7 +57,7 @@ processuperclass([]):- !.
 processuperclass(""):- !.
 processuperclass(Name) :-
    write(' extends '),!,write(Name).
-% Write attributes to COB program, replace series variable with array representation
+%---Write attributes to COB program, replace series variable with array representation
 processtcobattr([]):- !.
 processtcobattr(X) :-
    write('attributes'),nl,!, processtcobattr1(X),nl.
@@ -65,13 +65,13 @@ processtcobattr1([]).
 processtcobattr1([att(Type,Var)|T]) :-
    tab(1),getdecl(Type,Decl),dumpprint(Decl),write(Var),
    write(';'),nl,!,processtcobattr1(T).
-%Extract attributes from parsetree
+%---Extract attributes from parsetree
 getclassattr(_,[],[]).
 getclassattr(N,[classdef(N,_,Attr,_,_,_,_)|_],Attr).
 getclassattr(N,[classdef(abstract(N),_,Attr,_,_,_,_)|_],Attr).
 getclassattr(N,[_|T],Attr):-
    getclassattr(N,T,Attr).
-%Write constraints to COB program
+%---Write constraints to COB program
 processtcobconstri(_,[],_,_,_,_):-!.
 processtcobconstri(PT,C,A,P,N,T) :-
    write('constraints'),!,nl,processtcobconstri1(PT,C,A,P,N,T),nl.
@@ -79,7 +79,7 @@ processtcobconstri(PT,C,A,P,N,T) :-
 processtcobconstri1(_,[],_,_,_,_) :-!.
 processtcobconstri1(ParseTree,Constraints,Attributes,Pred,Name,SkipList) :-
    handletimeloop(ParseTree,Constraints,Attributes,Pred,Name,SkipList).
-%write predicates to TCOB class, which include mto predicates extracted TCOB class
+%---write predicates to TCOB class, which include mto predicates extracted TCOB class
 processtcobpredicates([],[],_,_).
 processtcobpredicates([class_predicates(X)],Y,PT,Attr) :-
    write('predicates'),nl, writepredicates1(X),writemtopredicates(Y,PT,Attr),nl.
@@ -89,7 +89,7 @@ processtcobpredicates([],Y,PT,Attr) :-
 processtcobconstructor([]).
 processtcobconstructor(X):-
    write('constructors'),nl,writeconstructor1(X).
-%IDentify the type of attributes from parse tree
+%---Identify the type of attributes from parse tree
 getdecl(primitive(Type),[Type,' ']).
 getdecl(user(Type),[Type,' ']).
 getdecl(series(primitive(Type)),[Type, ' []']).
@@ -111,7 +111,7 @@ dumpprint([[H]]) :-
    integer(H),write('['),write(H),write(']').
 dumpprint([H|T]) :-
    ptterm(H,[]),dumpprint(T).
-%Check time loop skip list, if in list process with Time variable
+%---Check time loop skip list, if not in the list process with Time variable
 handletimeloop(PT,Constraints,Attributes,Mtopredlist,Name,SkipList) :-
    ( checkSkipList(SkipList,Name) ->  pptcobconstraintlist(PT,Constraints,_,_);
    tab(1),nl,tab(1),getmtoconstraints(Constraints,Mtopred),
@@ -126,7 +126,7 @@ writeconstructor1([]).
 writeconstructor1([constructor(Name,AL,C)|T]) :-
    write(Name),write('( Time'),addcomma(AL),writeargument(AL),write('){'),
    pptcobconstraintlist(_,C,_,_),addsemic(C),write('}'),nl,writeconstructor1(T).
-%Write main class time based simulation
+%----Write main class time based simulation
 processmain(Driver,[S,E]) :-
    atom_codes(Driver,X),tokenize(X,Out),
    getdriver(driver(N,Attr),Out,[]),write('class main'),nl,write('{'),
@@ -136,15 +136,15 @@ processmain(Driver,[S,E]) :-
    write(E),write(':('),nl,write('Main = new '),write(N),write('(Time'),
    addcomma(Attr),writeargument(Attr),write('));'),nl,write('}'),nl,write('}').
 
-%Process constraints list, contain Parse tree and attributes for series variable 
-%process Mto to process metric temporal constraints
+%---Process constraints list, contain Parse tree and attributes for series variable 
+%---process Mto to process metric temporal constraints
 pptcobconstraintlist(_,[],[],_). 
 pptcobconstraintlist(PT,[X],Attributes,Mto):-
    tabs(1), ptconstraint(PT,X,Attributes,Mto).
 pptcobconstraintlist(PT,[X|T],Attributes,Mto) :-
    ptconstraint2(PT,X,Attributes,Mto), !,tabs(1),
    pptcobconstraintlist(PT,T,Attributes,Mto).
-%Get MTO constraints from constraints list
+%---Get MTO constraints from constraints list
 getmtoconstraints([],_).
 getmtoconstraints([X|T],[MtoC1|MtoC2]) :-
    getmtoconstraints(X,MtoC1),getmtoconstraints(T,MtoC2).
@@ -159,7 +159,7 @@ getmtoconstraints(_,[]).
 addcomma([]).
 addcomma(_) :-
    write(', ').
-%Process argument list for constructor and predicates
+%---Process argument list for constructor and predicates
 writeargument([]).
 writeargument([att(_,X)|T]) :-
    write(X),writeargument2(T).
@@ -183,7 +183,7 @@ checkSkipList([_|T],Name) :-
 
 addsemic([]).
 addsemic(_):- write(';').
-%Different way to process constraints in TCOB program
+%---Different way to process constraints in TCOB program
 ptconstraint2(_,compare('=', Term1, Term2),_,_) :-
    Term1 == Term2, !.
 ptconstraint2(_,'true',_,_) :-
@@ -218,7 +218,7 @@ ptconstraint(PT,[X|T],Attr,_) :-
    !, ptconstraint(PT,X,Attr,_),write(','),ptconstraint(PT,T,Attr,_).
 ptconstraint(PT,constraintPred(N,X),A,_) :-
    write(N),write('('),ptpredargument(PT,X,A),write(')').
-%Replace mto constraints with corresponding predicate call
+%---Replace mto constraints with corresponding predicate call
 ptconstraint(PT,mto('G',time(Start,End),C),A,P) :-
    getgpredicatename(P,C,N), write(N),write('('),
    ptconstraint(PT,Start,A,_),write(','),ptconstraint(PT,End,A,_),
@@ -240,7 +240,7 @@ ptconstraint(PT,mto('F',[],C),A,P) :-
 ptconstraint(PT,mto('G',[],C),A,P) :-
    getgpredicatename(P,C,N),  write(N), write('(1,Time1,0,['),
    getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
-%To process series variable in reference,extract attributes from refered object 
+%---To process series variable in reference,extract attributes from refered object 
 ptconstraint(PT,ref(X,V),Attr,_):-
    getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),
    write(X),write(.),ptterm(V,NewAttr).
@@ -250,7 +250,7 @@ ptconstraint(PT,ref(ind(X,I),V),Attr,_):-
    
 ptconstraint(PT,not(C),Attr,_) :-
    write('not('),ptconstraint(PT,C,Attr,_),write(')').
-%Quantified constraint handler
+%---Quantified constraint handler
 ptconstraint(PT,uquant(I,fromto(X,Y),C),Attr,Mto) :-
    write('forall '),write(I),write(' in '), write(X),write('..'),
    write(Y),write(':('),pptcobconstraintlist(PT,C,Attr,Mto),write(')').
@@ -269,7 +269,7 @@ ptconstraint(PT,summation(In,Obj,C),Attr,Mto) :-
 ptconstraint(PT,condConstr(Constraint, Literals),Attr,Mto) :-
    pptcobconstraintlist(PT,[Constraint],Attr,Mto), write(':-'),
    ppliterals(Literals,PT,Attr).
-%Add Time variable in constructor call
+%---Add Time variable in constructor call
 ptconstraint(_,new(O,C,A),Attr,_) :-
    ppterm(O), write(' = new '),write(C),
    write('( Time'),addcomma(A),!, ptterms(A,Attr),write(')').
@@ -281,7 +281,7 @@ ptconstraint(_,builtinclpr(X),_,_) :-
    write(X).
 ptconstraint(_,T,A,_):-
    ptterm(T,A).
-%Check variable is series or not. If series add Time index
+%---Print tcob terms,Check variable is series or not. If series add Time index
 ptterms([],_).
 ptterms([X],[]) :-
    ppterm(X).
@@ -322,12 +322,12 @@ ptterm(enclosed(T),A) :-
 %ppterms([X],A) :- ppterm(X,A).
 ptterm(X,_) :-
    ppterm(X).
-%%%Check for series variable
+%---Check for series variable
 seriescheckvariable([att(series(_),V)|_],V).
 seriescheckvariable([att(array(series(_),_),V)|_],V).
 seriescheckvariable([_|T],V) :-
    seriescheckvariable(T,V).
-%Add unique name for MTO predicates and print it in the predicate section of COB class
+%---Add unique name for MTO predicates and print it in the predicate section of COB class
 getgpredicatename(dcobG(N,_,C),C,N):-!.
 getgpredicatename([H|_],C,N) :-
    getgpredicatename(H,C,N).
@@ -346,7 +346,7 @@ writemtopredicates([X|T],PT,Attr) :-
 
 writemtopredicates1(X,PT,A) :-
    ppmtopredicate(X,PT,A),write('.'),nl.
-%Index for series variable
+%---Index for series variable in MTO constraints
 writeindex([],_).
 writeindex([H|T],I) :-writeindex(H,I),writeindex(T,I).
 writeindex(ser(X,Y),I):- write('index('),write(I),write(','),write(X),write(','),write(Y),write('),').
@@ -380,7 +380,7 @@ ppmtopredicate(dcobF(N,time(_),C),PT,A) :-
 
 writedefaultG(N) :-
    write(N),write('(Lo,Lo,_,_):-!.'),nl,write(N),write('(Lo,Hi,_,_):-Lo>=Hi,!.'),nl.
-
+%---Process MTO constraints argument
 pmtoargument(compare(R,Term1,Term2),PT,A,compare(R,RTerm1,RTerm2)):-
    pmtoterm(Term1,PT,A,RTerm1),pmtoterm(Term2,PT,A,RTerm2).
 
@@ -403,7 +403,7 @@ pmtoterm(prev(_),_,_,R) :-
    tcobnp(R).
 pmtoterm(ref(_,Y),_,_,Y).
 pmtoterm(X,_,_,X).
-
+%---Generate unique name for MTO predicates and variable
 tcobgpred(X) :- 
    gensym(tcobg, X).
 tcobfpred(X) :- 
@@ -416,7 +416,7 @@ tcobindex(X) :-
    gensym('Tcobind',X).
 tcobnp(X):- 
    gensym('Tcobnp',X).
-
+%--Extract variable from a constraints
 getvars(PT,Attr,compare(_,Term1,Term2),[H|T]) :-
    getvars(PT,Attr,Term1,H),getvars(PT,Attr,Term2,T).
 getvars(PT,Attr,add(Term1,Term2),[H,T]) :-
@@ -435,7 +435,8 @@ getvars(_,_,ind(X,Y),ind(X,Y)).
 getvars(_,_,next(X),next(X)).
 getvars(_,_,prev(X),prev(X)).
 getvars(PT,Attr,ref(X,Y),ref(X,Y)):-
-   getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),seriescheckvariable(NewAttr,Y).
+   getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),
+   seriescheckvariable(NewAttr,Y).
 getvars(_,_,ref(X,Y),ref(X,Y)).
 getvars(_,_,_,[]):- !.
 
@@ -452,7 +453,7 @@ gettype(V,[_|T],Type):- gettype(V,T,Type).
 
 getobjattr(PT,Obj,Attr,NewAttr) :-
     gettype(Obj,Attr,Type),getclassattr(Type,PT,NewAttr).
-%%	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%--Handle literals in TCOB constraints, ParseTree and Attribute list to get series variable
 ppliterals([X],PT,A) :-
    tabs(1),
    ppliteral(X,PT,A).
@@ -463,9 +464,10 @@ ppliterals([X|T],PT,A) :-
 
 ppliteral(X,PT,A):-
    ptconstraint(PT,X,A,_).
+%---TCOB Specific Predicates ends here------------
 
-%%%%COB MAIN AND TRANSLATION PREDICATES%%%%%%
-
+%---COB Specific Predicates
+%---Convert COB program to CLP
 cob2swi(File) :-
    atom_codes(File, FullCodes),
    atom_codes('.cob',S),
@@ -488,12 +490,13 @@ process(Stream, Output) :-
    call(use_module, ['library(clpr)'])]))],
    P, SWIprog),tell(Output),
    prettyprint(SWIprog), told.
+%---Translate COB program
 translateprog([X|T], O, P) :-
    translateclass(X, O, C),
    translateprog(T, O, Rest),
    append(C, Rest, P).
 translateprog([], _, []).
-
+%---Take each class and transalte
 translateclass(classdef(Name, Superclass, Attributes, Constraints,
                Predicates, Constructors, _), L, Class) :-
    translate(Name, Superclass, Attributes, Constraints, Constructors, L, C1),
@@ -508,7 +511,6 @@ translate(Name, Superclass, Attributes, Constraints, [Constructor|T], L, C) :-
 % subclasses' translation may call this predicate
 translate(Name, Superclass, Attributes, Constraints, [], L, C) :-
    translateone(Name, Superclass, Attributes, Constraints, L, C).
-
 
 translateone(Name, "", Attributes, Constraints, constructor(Name, Att1, ConstructorConstraintList), L,
    [pred(Name, Att, AttList,  ConstraintList)|P]) :-
@@ -555,7 +557,7 @@ attributesofclass(Name, [X|_], L, Attributes) :-
    attributesofclass(Superclass, L, L, SuperAtt), append(SuperAtt, Att, Attributes).
 attributesofclass(Name, [_|T], L, Attributes) :- 
    attributesofclass(Name, T, L, Attributes).
-
+%---Translate conditional constraints
 translateconstraints([], _, [], [], _, _) :- !.
 translateconstraints([condConstr(Constraint, Literals)|Rest], L,
                      TRest1, P5, Name, EType) :- %translate Constraints & Literals!!
@@ -563,6 +565,7 @@ translateconstraints([condConstr(Constraint, Literals)|Rest], L,
    translateliterals(Literals, L, Callsbefore, TLiterals, P2, Name, EType),
    translateconstraints(Rest, L, TRest, P3, Name, EType), append(P1, P2, P4), append(P4, P3, P5),
 append(TC, Callsbefore, TCL), append(TCL, [condConstr([FirstC], TLiterals)], TCLCC), append(TCLCC, TRest, TRest1).
+%---Translate creational constraint
 translateconstraints([new(T1, Class, Pars)|Rest], L, Calls, P, Name, EType) :-
    translateterm(T1, L, TT1, Cl1, P1, Name, Class, EType),
    translateterms(Pars, L, TPars, Cl2, P2, Name, _, _),
@@ -571,6 +574,7 @@ translateconstraints([new(T1, Class, Pars)|Rest], L, Calls, P, Name, EType) :-
  %  append(ParEqnList, C13, CP13),
    append(C13, [call(Class, [TPars, TT1])], Cl4), append(Cl4, TRest, Calls),
    append(P1, P2, P3), append(P3, PRest, P).
+%---Translate qunatified constraints
 translateconstraints([uquant(V, fromto(N, M), LX)|Rest], L,
                      [call(makelistfromto, [N, M, NtoM]),
                       call(Forall, [NtoM, functor(SLX)])|TRest],
@@ -660,7 +664,6 @@ translateconstraints([constraintPred(CPName,Terms)|Rest], L, CorrectedOrderofCal
    append(Calls, TRest, CorrectedOrderofCalls).
 
 
-
 translateconstraints([compare(R, Term1, Term2)|Rest], L, [compare(R, T1, T2)|CTRest], P, Name, EType) :-
    !, translateterm(Term1, L, T1, Cl1, P1, Name, _, EType),
       translateterm(Term2, L, T2, Cl2, P2, Name, _, EType),
@@ -670,7 +673,7 @@ translateconstraints([bool(Term)|Rest], L, [bool(T)|CTRest], P, Name, EType) :-
    !, translateterm(Term, L, T, Cl, P1, Name, _, EType),
    translateconstraints(Rest, L, TRest, P2, Name, EType), append(Cl, TRest, CTRest),
    append(P1, P2, P).
- %Changed the order of translateconstraints
+   %Changed the order of translateconstraints
    translateconstraints([not(Constraint)|Rest], L, [not(FirstC)|Calls], P, Name, EType) :-
    !,
    translateconstraints([Constraint], L, [FirstC|TC], P1, Name, EType),
@@ -690,19 +693,21 @@ translateconstraints([not(Constraint)|Rest], L, [FirstC, not(SecondC)|Calls], P,
 translateconstraints([pred(PName,Terms)|Rest], L, [pred(PName, TTerms)|Calls], P, Name, EType) :-
    !, translateterms(Terms, L, TTerms, Cl1, P1, Name, _, EType),
    translateconstraints(Rest, L, TRest, P2, Name, EType), append(Cl1, TRest, Calls), append(P1, P2, P).
-   
- translateconstraints1([constraintPred(CPName,Terms)|Rest], L, CorrectedOrderofCalls, P, Name, EType) :-
+%---Translate predicate call in constriants  
+translateconstraints1([constraintPred(CPName,Terms)|Rest], L, CorrectedOrderofCalls, P, Name, EType) :-
    !, translateterms(Terms, L, TTerms, Cl1, P1, Name, _, EType),
    translateconstraints(Rest, L, TRest, P2, Name, EType), append(P1, P2, P),
 append( [constraintPred(CPName, TTerms)],Cl1, Calls),
    append(Calls, TRest, CorrectedOrderofCalls).
 
-translateconstraints1([not(constraintPred(CPName,Terms))|Rest], L, CorrectedOrderofCalls, P, Name, EType) :-
+translateconstraints1([not(constraintPred(CPName,Terms))|Rest], L, 
+                       CorrectedOrderofCalls, P, Name, EType) :-
    !, translateterms(Terms, L, TTerms, Cl1, P1, Name, _, EType),
    translateconstraints(Rest, L, TRest, P2, Name, EType), append(P1, P2, P),
-append( [not(constraintPred(CPName, TTerms))],Cl1, Calls),
+   append( [not(constraintPred(CPName, TTerms))],Cl1, Calls),
    append(Calls, TRest, CorrectedOrderofCalls).
-   translateconstraints1(Lit,L, P, P1,Name, EType) :-       translateconstraints(Lit, L, P, P1, Name, EType).
+translateconstraints1(Lit,L, P, P1,Name, EType) :-       
+   translateconstraints(Lit, L, P, P1, Name, EType).
 
 translateliterals([], _, [], [], [], _, _).
 
@@ -730,7 +735,7 @@ translateliterals([Lit|RestL], L, Callsbefore, TLiterals, P3, Name, EType) :-
    translateconstraints1([Lit], L, [FirstL|TL], P1, Name, EType),
    translateliterals(RestL, L, Callsbefore1, TRestL, P2, Name, EType),
    append([FirstL], TRestL, TLiterals), append(P1, P2, P3), append(TL, Callsbefore1, Callsbefore).
-
+%---Term handling
 translateterm(and(A, B), L, and(TA, TB), Calls, P, Name, 'Real', EType) :-
    !,
    translateterm(A, L, TA, Cl1, P1, Name, 'Real', EType),
@@ -846,7 +851,6 @@ translateterm(ref(A, B), L, A_B, Calls, P, Name, TypeB, EType) :-
    append(P1, P2, P), append(Cl1, Cl2, Calls1),    %typeof(TA, Name, L, Type),
    attributesofclass(Type, L, Att), removetypedecl(Att, Att1),
    prefix(TA, Att1, TTAType), prefix(TA, TB, A_B),
-%Calls1 is appended in front (in the next line) for efficiency reasons.
    append(Calls1, [compare('=', TA, dangling(TTAType))], Calls).
 translateterm(ind(C, T), L, C_T, Calls, P, Name, TypeC, _) :-
    %typeof(C, _, L, _, TypeC), %isn't this incomplete ? e.g. A.I[5] will not be translated correctly
@@ -981,7 +985,7 @@ subst(V, W, constraintPred(Name, L), constraintPred(Name, SL)) :-
 subst(V, W, not(C), not(SC)) :-
    subst(V, W, C, SC).
 subst(_, _, A, A).
-
+%--Generate unique name for variable
 cobvar(X) :- 
    gensym('Cob', X).
 cobforallpred(X) :- 
@@ -995,7 +999,7 @@ cobminpred(X) :-
 cobmaxpred(X) :- 
    gensym(cobmax, X).
 
-
+%--Print predicates to CLP file
 prettyprint([pred(Name, [], AttList, [])|T]) :-
    write(Name), write('('), write([]), write(','), write(AttList), write(')'), write('.'), nl, nl,
    prettyprint(T).
@@ -1018,6 +1022,7 @@ prettyprint([class_predicates(Predicates)|T]) :-
    prettyprint(T).
 prettyprint([]).
 
+%--Print formating for constraints
 ppconstraintlist([]). %not correct
 ppconstraintlist([X])   :- 
    tabs(1), ppconstraint(X).
@@ -1134,8 +1139,9 @@ pponeclasspredicate([quotedString(S)|Rest]) :-
 pponeclasspredicate([L|Rest]) :-
    write('  '), write(L),
    pponeclasspredicate(Rest). %from sunnyvale
+%---COB Specifc predicates end here
    
-%------------COMMON PRINTING PREDICATES---------------
+%---Common printterms for COB&TCOB
 ppterms([X]) :-
    ppterm(X).
 ppterms([]).
@@ -1295,15 +1301,13 @@ extractvars(condConstr(A,B), V) :-
    extractvars(A, Va), extractvars(B, Vb), append(Va, Vb, V).
 extractvars(new(X,_,Args),V) :-
    extractvars(X, Vx), extractvars(Args, Va), append(Vx, Va, V).
-% dump not valid for sicstus, yet it can be present till the prettyprint stage.
-% In pretty printing it is changed to print(...)
 extractvars(constraintPred(dump,Args), V) :-
    extractvars(Args, V).
 extractvars(constraintPred(print,Args), V) :-
-   extractvars(Args, V). %  instead of dump for sicstus
+   extractvars(Args, V). 
 extractvars(constraintPred(_Name,Args), V) :-
    extractvars(Args, V).
-%next clause added to for Anand
+
 extractvars(not(C), V) :- 
    extractvars(C, V).
 extractvars(A, [A]).
@@ -1327,6 +1331,7 @@ removenumbers([X|T], [X|RT]) :-
    removenumbers(T, RT). % if \+ number(X).
    
 % ------------------ SYNTAX ANALYZER FOR TCOB&COB ---------------------------
+%---TCOB parser
 parsetcob(Tokens, ParseTree) :-
    resetclassnamecounter(_), resetkeywordcounter(_),
    time_program(ParseTree, Tokens, []), !.
@@ -1361,11 +1366,11 @@ class_list([C]) -->
    [id(C)].
 class_list([]) -->
    [].
-%%%%%%%%COB%%%%
+%---COB parser
 parsecob(Tokens, ParseTree) :- 
    resetclassnamecounter(_), resetkeywordcounter(_), program(ParseTree, Tokens, []), !.
 parsecob(_,[]) :- 
-   print('Syntax error in class '), classnamecounter(C), print(C), nl,
+   print('Syntax error in COB class '), classnamecounter(C), print(C), nl,
                print('while parsing '), parsing(X), print(X),
                keywordclausecounter(Y), print(Y), nl, fail.
 
@@ -1373,7 +1378,7 @@ tcob_program([X|T]) -->
    tcob_class_definition(X), {!}, tcob_program(T).
 tcob_program([]) -->
    [].
-%------------COMMON----------
+%---Common
 program([X|T]) -->
    class_definition(X), {!}, program(T).
 program([]) -->
@@ -1795,7 +1800,7 @@ namematch(Name) :-
 namematch(_) :-
    classnamecounter(_), fail.
 
-%__________________helper predicates______________________
+%---helper predicates
 
 make_ind(A, [], A).
 make_ind(A, [T|Rest], Ind) :- 
@@ -1816,7 +1821,7 @@ resetkeywordcounter(_) :-
 seen(X) :- 
    retractall(parsing(_)), assert(parsing(X)).
 
-%_______________added to accomodate formulae
+%---added to accomodate formulae
 
 boolexpr(Y)     --> 
    boolterm(X), boolterm2(X,Y).
@@ -1859,7 +1864,6 @@ exprlist([E|L]) -->
 operator(->, impl).
 operator(and, and).
 operator(or, or).
-
 
 % ------------------ LEXICAL ANALYZER FOR TCOB&COB---------------------------
 

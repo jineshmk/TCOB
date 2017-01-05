@@ -1,0 +1,85 @@
+{simulation_start= 2, simulation_end =100}
+class plant{
+    attributes
+        series real Fo;
+        series real  X;
+        series real  V;
+        int M,B,K;
+    constraints 
+        V= X-`X;
+        Fo= M*(V-`V)+ B*V+K*X;
+    constructors 
+        plant(M1,B1,K1,Fo2,X1,V1){
+        M=M1;
+        B=B1;
+        K=K1;
+        X<1> = X1;
+        V<1> = V1; 
+      }
+}
+
+class controller{
+    attributes
+        int Kp,Ki,Kd;
+        series real Error;
+        series real ESum;
+        series real Out;
+    constraints
+       Kp>0; Kd>0; Ki>0;
+        ESum  =  Error + `ESum; 
+        Out  = (Kp*Error) + (Ki*ESum) + Kd*(Error- `Error); 
+    constructors
+        controller(KP,KI,KD){
+            Kp=KP; Ki=KI; Kd=KD;
+            ESum<1>  = 0;
+            Error<2>  =0;
+            Error<1> =0;
+    }
+}
+
+class sensor{
+    attributes
+        plant P;
+        series real Output;
+    constraints
+        P.X=Output;
+    constructors
+        sensor(P1){ P=P1;}
+}
+
+class system{
+  attributes
+     plant P;
+     controller C;
+     sensor S;
+     real Dvalue;
+     
+  constraints
+     P.Fo = C.Out; 
+     C.Error`+ S.Output=Dvalue; 
+     dump(P.X[Time]);
+   predicates
+    dump(X):- write(X),nl.
+  constructor system() {
+     P= new plant(1,10,20,1,1,1);
+     C= new controller(1,1,1);
+     S= new sensor(P);
+     Dvalue = 1;
+    }
+}  
+
+$
+
+Compile
+
+?- tcob2swi('pid.tcob','system()').
+
+Load
+
+?- [pid].
+
+Run
+
+?- main(_,_).
+
+

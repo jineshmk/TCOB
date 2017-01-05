@@ -1,0 +1,135 @@
+{simulation_start= 2, simulation_end =100,skip_time_loop=[source]}
+
+abstract class component {
+ attributes
+    series real V;
+    series real I; 
+ constraints
+    V<1> = 0.0;
+    I<1> = 0.0;
+}
+
+class source extends component {
+  constraints
+      step(0.0,100.0,Limit,V);
+  predicates
+    step(Zero,One,N,[Zero,One|T]) :-
+	  N2 is N-2,
+        gen2(Zero,One,0,N2,T).
+
+    gen2(_,_,M,M,[]).
+    gen2(Zero,One,L,M,[Zero,One|T]) :- 
+       N is L+2, 
+       gen2(Zero,One,N,M,T).
+
+    gen(M,M,[]).
+    gen(L,M,[Volt|T]) :- 
+       L < M,
+       L2 is L/4,
+       sin(L2,SinL),
+       Volt is 100*SinL,
+       N is L+1, 
+       gen(N, M, T).
+
+  constructors source(L) {
+     Limit = L;
+  }
+ }
+
+
+class resistor extends component{
+ attributes
+    real R;
+ constraints
+    V = I * R;
+ constructors resistor(R1){
+    R = R1;
+    }
+}
+
+class inductor extends component {
+ attributes
+    real L;
+ constraints
+    V = L * (I - `I);
+ constructors inductor (L1) {
+    L = L1; 
+    }
+}
+
+class capacitor extends component{
+ attributes
+    real C;
+ constraints
+    I = C * (V -`V);
+ constructors capacitor(C1){
+       C = C1;
+    }
+}
+
+
+class parallel extends component {
+ attributes
+    component[] PC;
+ constraints
+    forall X in PC: X.V = V;
+    (sum X in PC: X.I) = I;			
+ constructors 
+    parallel(B) {
+       PC = B;
+    }
+}
+
+class series2 extends component {
+ attributes
+    component [] SC;
+ constraints
+    forall C in SC: C.I = I;
+    (sum X in SC: X.V) = V;
+ constructors series2(A) {
+        SC = A;
+    }
+}
+
+class samplecircuit {
+ attributes
+    source AC;
+    resistor R;
+    inductor L;
+    capacitor C;
+    series2 S;
+    parallel P;
+    component[] Ser;
+    component[] Par;    
+ constraints
+    dump(R.I[Time]);
+ predicates
+    dump(X):- write(X),nl.
+
+ constructors samplecircuit() {
+    R = new resistor(10.0);
+    L = new inductor(1.0);
+    C = new capacitor(0.1);
+    Ser[1] = R;
+    Ser[2] = L;
+    Ser[3] = C;
+    S = new series2(Ser);   
+    AC = new source(100);
+    Par[1] = S;
+    Par[2] = AC;
+    P = new parallel(Par); 
+   }
+}
+$
+  
+Compile
+
+?- tcob2swi('ac_circuit.tcob','samplecircuit()').
+
+Load
+
+?- [ac_circuit].
+
+Run
+
+?- main(_,_).
