@@ -5,7 +5,7 @@ The TCOB compiler builts up on the SWI-prolog implementation. In order to work w
 * helper_clpr.pl - Collection of TCOB built-in predicates
 
 ### Step 1
-Download the compiler code and move into the two files(tcob2swi.pl, helper_clpr.pl) to your prolog working directory
+Download the compiler code and move into the two files into your prolog working directory
 Open swi prolog environment and load the compiler
 ```sh
 $swipl
