@@ -241,12 +241,13 @@ ptconstraint(PT,mto('G',[],C),A,P) :-
    getgpredicatename(P,C,N),  write(N), write('(1,Time1,0,['),
    getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
 %---To process series variable in reference,extract attributes from refered object 
-ptconstraint(PT,ref(X,V),Attr,_):-
-   getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),
-   write(X),write(.),ptterm(V,NewAttr).
 ptconstraint(PT,ref(ind(X,I),V),Attr,_):-
    getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),
    ptterm(ind(X,I),NewAttr),write(.),ptterm(V,NewAttr).
+ptconstraint(PT,ref(X,V),Attr,_):-
+   getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),
+   write(X),write(.),ptterm(V,NewAttr).
+
    
 ptconstraint(PT,not(C),Attr,_) :-
    write('not('),ptconstraint(PT,C,Attr,_),write(')').

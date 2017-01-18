@@ -1,6 +1,8 @@
 :- use_module(library(clpr)).
 :- use_module(library('plot/plotter')).
 :- use_module(library(autowin)).
+%conditional_constraint(A,_) :- call(A),!.
+%conditional_constraint(_,B):- \+(call(B)).
 
 conditional_constraint(A, B) :-!, when(ground(B), conditional_constraint1(A,B)).
 conditional_constraint1(A,B) :- call(B), !, call(A).
@@ -110,7 +112,7 @@ index(100,[_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_
 index(Index,[_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_|T], Value):- 
 Index > 100 ,NI is Index-100,NI>0,index(NI,T, Value).
 
-
+index(I,_,0) :- I=<0.0 . 
 index([X|_], I, I, X) :- !.
 index([_|T], I, N, X) :-
    J is I + 1, J=<N,
@@ -169,7 +171,8 @@ removevar([X|Xs], Z) :-
    var(X), removevar(Xs, Z), !.
 removevar([X|Xs], [X|Zs]) :- 
    removevar(Xs,Zs).
-
+removevar(X,[]) :- var(X).
+removevar(X,[X]) .
 plot_graph(Title,L,XLo,XHi,YLo,YHi,Width,Height,Spacing,TG) :-
    removevar(L,LN),
    new(W, auto_sized_picture(Title)),
@@ -194,12 +197,18 @@ dump_to_file(N,V) :-
    close(Stream).
 
 write_to_file(_,[[]],_).
+write_to_file(_,[],_).
+write_to_file(Stream,[N],[V]):- 
+    write_to_file1(Stream,[N],[V]).
 write_to_file(Stream,[N],[[V]]):-
-   write_to_file(Stream,[N],[V]).
-write_to_file(Stream,[Name|Tail],[X|T]) :-
+   write_to_file1(Stream,[N],[V]).
+
+ write_to_file1(_,[[]],_).
+write_to_file1(_,[],_).  
+write_to_file1(Stream,[Name|Tail],[X|T]) :-
    write(Stream,Name),write(Stream,','),
    removevar(X,NX),dumpval(Stream,NX),put(Stream,10),
-   write_to_file(Stream,[Tail],[T]).
+   write_to_file1(Stream,[Tail],[T]).
 
 dumpval(_,[]).
 dumpval(Stream,[X|T]) :-

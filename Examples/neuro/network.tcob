@@ -1,0 +1,170 @@
+% Adex model of neuron receiving excitatory and inhibitory synaptic inputs 
+%Author: Manjusha Nair M @Amrita University
+{simulation_start= 2, simulation_end =2500}
+ class ampa
+ {
+    attributes
+      series real Gampa,Iampa;
+      series real SpikeTime,TimeElapsed;
+      real Gmax, No, E,Eampa,Dt;
+      series real Vm;
+      real []Input;
+    constraints
+       TimeElapsed = Time*Dt;
+       member(TimeElapsed, Input) -->  SpikeTime = Time;
+       not( member(TimeElapsed, Input)) -->  SpikeTime = `SpikeTime;
+       TimeElapsed < Input<1> --> Gampa = 0;
+       TimeElapsed >= Input<1> --> Gampa= Gmax* pow(E,-(TimeElapsed/18))* ((1- pow(E,-(TimeElapsed/2.2)) / 0.68));
+       TimeElapsed <  Input<1> --> (Iampa = 0);
+       TimeElapsed >=  Input<1> --> (Iampa  = Gampa*  (Vm- Eampa));
+       
+        No =1 --> Gmax=5;
+        No =2 --> Gmax= 5;
+        No=3 -->Gmax=10;
+        No=4 -->Gmax=15;
+ 
+      constructors ampa()
+      {
+      %Input=[20.0,30.0,40.0,50.0,60.0];
+       Input=[20.0];
+       Eampa = 0.0;
+       E = 2.718281828;
+       Dt =0.02;
+       SpikeTime<1> =0; %set initial value
+       TimeElapsed<1> =0.02;
+       Gampa<1> = 0;
+        Iampa<1> =0;
+   }
+}
+
+
+class gaba
+{
+   attributes
+     series real Ggaba,Igaba;
+     series real SpikeTime,TimeElapsed;
+     series real Vm;
+     real Gmax, E, Egaba, No, Dt;
+     real []Input;
+   constraints
+      TimeElapsed = Time*Dt;
+      member(TimeElapsed, Input) -->  SpikeTime = TimeElapsed;
+      not( member(TimeElapsed, Input)) -->  SpikeTime = `SpikeTime;
+     TimeElapsed < Input[1] --> Ggaba = 0;
+     TimeElapsed >= Input[1] --> Ggaba= Gmax * pow(E,-(TimeElapsed/25))* ((1- pow(E,-(TimeElapsed/1)) / 0.84));
+     TimeElapsed <  Input[1] --> Igaba = 0;
+     TimeElapsed >=  Input[1] --> Igaba = Ggaba *  (Vm- Egaba);
+     No =0 --> Gmax=0;
+     No =1 --> Gmax=25;
+     No =2 --> Gmax= 17;
+     No=3 -->Gmax=15;
+     No=4 -->Gmax=15;
+
+    constructors gaba(){
+   % Input=[20.0,30.0,40.0,50.0,60.0];
+        Input = [20.0];
+        Egaba=75.0;
+        E = 2.718281828;
+        Dt =0.02;
+        SpikeTime<1> =0; %set initial value
+        TimeElapsed<1> =0.02;
+        Ggaba<1> = 0.0;
+        Igaba<1> = 0.0;
+  }
+}
+
+
+class adex
+{
+  attributes
+
+         real C;  % capacitance
+   % scaling Parameters
+        real Gleak;  %Leak conductance
+        real Eleak;  %Leak reversal potential
+        real Delta; % The slope factor
+        real Vt;  %Threshold voltage
+
+   %Bifurcation Parameters
+        real A;  % Adaptation coupling parameter
+        real B ;  %reset adaptation value
+        real Tw;  % Adaptation Time constant;
+        real Vr;  %Reset voltage
+       real []SpikeTrain;
+        series real W ;  %adaptation variable
+        series real Vm;
+        series int Flag;
+
+        series real Iin; % Input current
+	series real Varray;
+        real V;
+        real E;
+        real Dt;
+    constraints
+        Flag=1 --> ( C * (Vm -` Vm) /Dt=
+                               - Gleak*(`Vm - Eleak) - `W + (-`Iin)
+                               + Gleak*Delta*pow(E,(`Vm-Vt)/Delta)) ;
+        Flag=1 --> (Tw * (W - `W)/Dt= A * (`Vm - Eleak ) - `W) ;
+        Flag =1 --> Varray=Vm;
+        Vm > -32  --> (Vm` = Vr) ;
+        Vm> -32  --> (W`= W + B) ;
+        Vm > -32  -->  Flag`=0;
+        Vm <= -32  -->  Flag`=1 ;
+        Flag = 0 --> Varray = 30.0;
+         Flag = 0 --> addtoarray(SpikeTrain,Time*Dt);
+   constructor adex(Cap,GV,EE,D1,V1,A1,B1,WW,T1,Vr1){
+        Gleak=GV;Eleak=EE;Delta=D1;Vt=V1;A=A1;B=B1;WW=W<1>;Tw=T1;Vr=Vr1;
+         C = Cap;
+        E = 2.71828;
+        V = -60.0;
+        Dt=0.02;
+        Flag<2> = 1;
+        Vm<1>  = -60.0;
+        Iin<1> =0;
+    }
+}
+class network
+{
+    attributes
+        adex [10]Ad;
+        ampa [10]Am;
+        gaba [10]Ga;
+
+    constraints
+    forall I in 1..10:(
+         Time=2 --> random(1,4,Am[I].No);
+         Time=2 --> random(0,4,Ga[I].No);
+         Am[I].Vm = Ad[I].Vm;
+         Ga[I].Vm = Ad[I].Vm;
+         Ad[I].Iin =Am[I].Iampa+Ga[I].Igaba;
+          Time=2500 -->dump_to_file(['Vm'],[Ad[I].SpikeTrain])
+        );
+      
+       
+   
+     
+    predicates
+        test(T,A):- write(T),write('---'),write(A),nl.
+    constructor network(){
+         forall I in 1..10:(
+         Ad[I] = new adex(200.0,10.0,-70.0,2.0,-50.0,2.0,0.0,0.0,30.0,-58.0);
+         Am[I] = new ampa();
+         Ga[I] = new gaba()
+         );
+
+    }
+
+}
+$
+
+
+%Compilation and Execution commands
+?-tcob2swi('network.tcob','network()').
+%Load
+?- [network].
+%Run
+?- main(_,_).
+
+
+
+
