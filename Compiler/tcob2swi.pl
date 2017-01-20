@@ -243,7 +243,11 @@ ptconstraint(PT,mto('G',[],C),A,P) :-
 %---To process series variable in reference,extract attributes from refered object 
 ptconstraint(PT,ref(ind(X,I),V),Attr,_):-
    getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),
-   ptterm(ind(X,I),NewAttr),write(.),ptterm(V,NewAttr).
+   ptterm(ind(X,I),NewAttr),write(.),ptterm(V,NewAttr).  
+ptconstraint(_,ref(prev(X),V),Attr,_):-
+   ptterm(ref(prev(X),V),Attr).
+ptconstraint(_,ref(next(X),V),Attr,_):-
+   ptterm(ref(next(X),V),Attr).
 ptconstraint(PT,ref(X,V),Attr,_):-
    getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),
    write(X),write(.),ptterm(V,NewAttr).
@@ -293,8 +297,10 @@ ptterms([X],A) :-
    ptterm(X,A).
 ptterms([X|T],A) :-
    ptterm(X,A), !,write(','), ptterms(T,A).
-ptterm((ref(prev(X),Y)),_) :-
+ptterm(ref(prev(X),Y),_) :-
    !, ppterm(ref(X,Y)), write('[Time-1]').
+ptterm(ref(next(X),Y),_) :-
+   !, ppterm(ref(X,Y)), write('[Time+1]').
 ptterm(ref(X,V),A):-
    ppterm(X),!,write('.'),ptterm(V,A).
 ptterm(X,[]) :-
@@ -529,10 +535,11 @@ translateone(Name, Superclass, Attributes, Constraints, constructor(Name, Att1, 
    !, translateconstraints(ConstructorConstraintList, L, CC, P1, Name, []), % predicates ?
    translateconstraints(Constraints, L, C, P2, Name, []),
    append(TD, CC, C1),    append(C1, C, C2), append(P1, P2, P),
-   cobvar(X), append([call(Superclass,[X, SAtt])], C2, ConstraintList).
-translateone(Name, "", Attributes, Constraints, L, [pred(Name, [], AttList,  ConstraintList)|P]) :-
+   cobvar(X), append([call(Superclass,[['Time',X], SAtt])], C2, ConstraintList).
+translateone(Name, "", Attributes, Constraints, L, [pred(Name, ['Time',X], AttList,  ConstraintList)|P]) :-
    translatetypedecl(Attributes, TD),
    removetypedecl(Attributes, AttList),
+   cobvar(X),
    !, translateconstraints(Constraints, L, ConstraintList1, P, Name, []),
    append(TD, ConstraintList1, ConstraintList).
 translateone(Name, Superclass, Attributes, Constraints, L, [pred(Name, [], AttList,  ConstraintList)|P]) :-
@@ -1045,6 +1052,8 @@ ppconstraint(compare(R, Term1, Term2)) :-
    amoper(Term2),write('{'), ppterm(Term1), write('  '), write(R), write('  '), ppterm(Term2), write('}'). % modified
 ppconstraint(compare(R, Term1, Term2)) :- 
    relop(R), R \== '=', write('{'), ppterm(Term1), write('  '), write(R), write('  '), ppterm(Term2),  write('}').
+   ppconstraint(compare(R, Term1, Term2)) :- 
+   var(Term1),var(Term2), write('{'), ppterm(Term1), write('  '), write(R), write('  '), ppterm(Term2),  write('}').
 ppconstraint(compare(R, Term1, Term2)) :-  
    ppterm(Term1), write('  '), write(R), write('  '), ppterm(Term2).
 
@@ -1080,6 +1089,12 @@ amoper(divide(_,_)). %added
 amoper(sub(_,_)). %added
 amoper(add(_,_)). %added
 amoper(pow(_,_)). %added
+amoper(negative(mult(_,_))). %added
+amoper(negative(divide(_,_))). %added
+amoper(negative(sub(_,_))). %added
+amoper(negative(add(_,_))). %added
+amoper(negative(pow(_,_))). %added
+amoper(negative(_,_)).
 
 dump2print([]) :- 
    print('true'). % dummy statement to end recursion without printing a comma
