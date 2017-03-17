@@ -124,3 +124,41 @@ addtoarray([H|_] , V ):-
    addval(H,V).
 addtoarray([_|T],V ) :-
    addtoarray(T,V).
+
+%logvar(T,N,V) :-
+%   
+%   write('Time = '),write(T),
+%   findall(P,obj(P),L),
+%   write(', Obj = '),write(L),
+%   write(', Var = '),write(N),
+%   write(', Val = '),
+%   (ground(V)->write(V);write('NaV'),
+ %   when(ground(V),logvar1(T,L,N,V))),nl.
+%logvar1(T,L,N,V) :-
+%   write('Time = '),write(T),
+%   write(', Obj = '),write(L),
+%   write(', Var = '),write(N),
+%   write(', Val = '),write(V),nl.
+writeobj([X]) :- write(X).
+writeobj([]).
+writeobj([X|T]) :-
+    write(X),write('.'),writeobj(T).
+
+logvar(T,N,V) :-
+   open('log.txt',append,St),
+   tell(St),
+   write('Time = '),write(St,T),
+   findall(P,obj(P),L),
+   write(', Obj = '),writeobj(L),
+   write(', Var = '),write(N),
+   write(', Val = '),
+   (ground(V)->write(V);write('NaV'),
+    when(ground(V),logvar1(T,L,N,V))),nl,
+    close(St),tell(user_output).
+logvar1(T,L,N,V) :-
+   open('log.txt',append,St),tell(St),
+   write('Time = '),write(T),
+   write(', Obj = '),writeobj(L),
+   write(', Var = '),write(N),
+   write(', Val = '),write(V),nl,
+   close(St),tell(user_output).
