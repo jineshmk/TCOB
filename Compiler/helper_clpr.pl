@@ -6,11 +6,11 @@
 
 conditional_constraint(A, B) :-!, when(ground(B), conditional_constraint1(A,B)).
 conditional_constraint1(A,B) :- call(B), !, call(A).
-conditional_constraint1(A, B) :- !.
+conditional_constraint1(_, _) :- !.
 
-index(I,L,X):- nth1(I,L,X).
+index(I,L,X):- J is round(I), nth1(J,L,X).
 
-index(I,_,0) :- I=<0.0 .
+
 index([X|_], I, I, X) :- !.
 index([_|T], I, N, X) :-
    J is I + 1, J=<N,
@@ -46,7 +46,10 @@ max(X,Y,Z) :- ((nonvar(X), nonvar(Y)) -> (Z is max(X,Y))
 					            ; (nonvar(Y) -> Z=Y
 						                 ; true))).
 
+
 makelistfromto(M, M, [M]):-!.
+makelistfromto(N, M, []):- M<N. 
+makelistfromto(M, N, [M]):- I is round(M),J is round(N),I=J,!. 
 makelistfromto(N, M, [N|NtoM]) :-
    N < M,
    N1 is N+1,
@@ -54,7 +57,7 @@ makelistfromto(N, M, [N|NtoM]) :-
 
 naf(B) :-
    call(B), !, fail.
-naf(B).
+naf(_).
 
 r2i(R,I) :-  I is round(R).
 % ------------------------------------------------------
@@ -124,3 +127,42 @@ addtoarray([H|_] , V ):-
    addval(H,V).
 addtoarray([_|T],V ) :-
    addtoarray(T,V).
+
+%logvar(T,N,V) :-
+%   
+%   write('Time = '),write(T),
+%   findall(P,obj(P),L),
+%   write(', Obj = '),write(L),
+%   write(', Var = '),write(N),
+%   write(', Val = '),
+%   (ground(V)->write(V);write('NaV'),
+ %   when(ground(V),logvar1(T,L,N,V))),nl.
+%logvar1(T,L,N,V) :-
+%   write('Time = '),write(T),
+%   write(', Obj = '),write(L),
+%   write(', Var = '),write(N),
+%   write(', Val = '),write(V),nl.
+writeobj([X]) :- write(X).
+writeobj([]):- !.
+writeobj([X|T]) :-!,
+    write(X),write('.'),writeobj(T).
+
+logvar(T,N,V,Obj) :-
+   open('log.txt',append,St),
+   tell(St),
+   write('Time = '),write(St,T),
+  % findall(P,obj(P),L),
+   write(', Obj = '),write(Obj),
+   write(', Var = '),write(N),
+   write(', Val = '),
+   (ground(V)->write(V);write('NaV'),!,
+    when(ground(V),logvar1(T,L,N,V,Obj))),nl,
+    tell(user_output),(is_stream(St)-> close(St);true),!.
+logvar1(T,L,N,V,Obj) :-
+   open('log.txt',append,St),tell(St),
+   write('Time = '),write(T),
+   write(', Obj = '),write(Obj),
+   write(', Var = '),write(N),
+   write(', Val = '),write(V),nl,tell(user_output),(is_stream(St)-> close(St);true),!.
+
+getname(Va, In,Out):- !,string_concat(Va,'[',I1),string_concat(I1, In,I2),string_concat(I2,']',Out).
