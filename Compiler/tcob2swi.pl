@@ -402,18 +402,18 @@ printgpredicate(N,C,PT,A) :-
    pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),writeargumentlist(VarList),
    write(']) :- Hi1 is ceil(Hi),Lo<Hi1,'),tcobindex(I),write(I),write(' is Lo+T,'),writeindex(VarList,I),
    %ptconstraint(_,R,[1],_),
-   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('{'),ptconstraint(_,R,[1],_),write('}')),
+   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),write('},Er,(')),ptconstraint(_,R,[1],_),write('))'),
    write(',Lo1 is Lo+1,'),write(N),write('( Lo1,Hi1,T,['),	writeargumentlist(VarList),write('])').
 printfpredicate(N,C,PT,A) :-
    write(N),write('( Lo,Hi,T,['),pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),
-   writeargumentlist(VarList),write(']) :- Hi1 is ceil(Hi),'),tcobindex(I),
+   writeargumentlist(VarList),write(']) :- Hi1 is ceil(Hi),Lo <Hi1,'),tcobindex(I),
    write(I),write( ' is T+Lo,'),writeindex(VarList,I),
    %ptconstraint(_,R,[1],_),write('.'),nl,
-   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('{'),ptconstraint(_,R,[1],_),write('}')),write('.'),nl,
+   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),write('},Er,(')),ptconstraint(_,R,[1],_),write('))'),write('.'),nl,
    printfsecpredicate(N).
    
 printfsecpredicate(N) :-
-   write(N),write('( Lo,Hi,T,C):-'),write( ' TP is Lo+1,'),write(N),write('(TP,Hi,T,C)').
+   write(N),write('( Lo,Hi,T,C):-'),write( ' Hi1 is ceil(Hi),TP is Lo+1,TP<Hi,!,'),write(N),write('(TP,Hi,T,C)').
    
 ppmtopredicate(dcobG(N,time(_,_),C),PT,A) :-
    printgpredicate(N,C,PT,A).
@@ -991,9 +991,9 @@ translateterm(ref(A, B), L, A_B, Calls, P, Name, TypeB, EType) :-
    attributesofclass(Type, L, Att), removetypedecl(Att, Att1),
    prefix(TA, Att1, TTAType), prefix(TA, TB, A_B),
    append(Calls1, [compare('=', TA, dangling(TTAType))], Calls).
-translateterm(ind(C, T), L, C_T, Calls, P, Name, TypeC, _) :-
+translateterm(ind(C, T), L, C_T, Calls, P, Name, TypeC,EType) :-
    %typeof(C, _, L, _, TypeC), %isn't this incomplete ? e.g. A.I[5] will not be translated correctly
-   !, translateterm(C, L, CT, Cl1, P1, Name, TypeC, _), % not sure if TypeC is correct
+   !, translateterm(C, L, CT, Cl1, P1, Name, TypeC, EType), % not sure if TypeC is correct edithere3/11/17
    cobvar(C_T), translateterm(T, L, TT, Cl2, P2, Name, int,_), append(P1, P2, P), append(Cl1, Cl2, Calls1),
 %Calls1 is appended in front (in the next line) for efficiency reasons.
    translateindex(Calls1, CT,TT,C_T, Calls).
