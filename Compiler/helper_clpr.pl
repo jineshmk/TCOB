@@ -8,8 +8,12 @@ conditional_constraint(A, B) :-!, when(ground(B), conditional_constraint1(A,B)).
 conditional_constraint1(A,B) :- call(B), !, call(A).
 conditional_constraint1(_, _) :- !.
 
-index(I,L,X):- J is round(I), nth1(J,L,X).
+random_val(Min,Max,A) :- random(Min,Max,A).
+random_val(Min,Max,A) :- random_val(Min,Max,A). 
 
+index(I,L,X):- ground(I),J is round(I), nth1(J,L,X).
+index(0,_,0).
+index(_,_,_).
 
 index([X|_], I, I, X) :- !.
 index([_|T], I, N, X) :-
@@ -132,16 +136,16 @@ addtoarray([_|T],V ) :-
 %   
 %   write('Time = '),write(T),
 %   findall(P,obj(P),L),
-%   write(', Obj = '),write(L),
-%   write(', Var = '),write(N),
-%   write(', Val = '),
+%   write(':Obj = '),write(L),
+%   write(':Var = '),write(N),
+%   write(':Val = '),
 %   (ground(V)->write(V);write('NaV'),
  %   when(ground(V),logvar1(T,L,N,V))),nl.
 %logvar1(T,L,N,V) :-
 %   write('Time = '),write(T),
-%   write(', Obj = '),write(L),
-%   write(', Var = '),write(N),
-%   write(', Val = '),write(V),nl.
+%   write(':Obj = '),write(L),
+%   write(':Var = '),write(N),
+%   write(':Val = '),write(V),nl.
 writeobj([X]) :- write(X).
 writeobj([]):- !.
 writeobj([X|T]) :-!,
@@ -152,17 +156,17 @@ logvar(T,N,V,Obj) :-
    tell(St),
    write('Time = '),write(St,T),
   % findall(P,obj(P),L),
-   write(', Obj = '),write(Obj),
-   write(', Var = '),write(N),
-   write(', Val = '),
+   write(': Obj = '),write(Obj),
+   write(': Var = '),write(N),
+   write(': Val = '),
    (ground(V)->write(V);write('NaV'),!,
     when(ground(V),logvar1(T,L,N,V,Obj))),nl,
     tell(user_output),(is_stream(St)-> close(St);true),!.
 logvar1(T,L,N,V,Obj) :-
    open('log.txt',append,St),tell(St),
    write('Time = '),write(T),
-   write(', Obj = '),write(Obj),
-   write(', Var = '),write(N),
-   write(', Val = '),write(V),nl,tell(user_output),(is_stream(St)-> close(St);true),!.
+   write(': Obj = '),write(Obj),
+   write(': Var = '),write(N),
+   write(': Val = '),write(V),nl,tell(user_output),(is_stream(St)-> close(St);true),!.
 
 getname(Va, In,Out):- !,string_concat(Va,'[',I1),string_concat(I1, In,I2),string_concat(I2,']',Out).

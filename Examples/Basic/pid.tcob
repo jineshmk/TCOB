@@ -80,6 +80,8 @@ Load
 
 Run
 
-?- main(_,_).
+?- main(_,_). 
+or if debug = yes
+? - main(_,_,_). 
 
 

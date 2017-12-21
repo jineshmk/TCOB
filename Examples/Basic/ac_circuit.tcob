@@ -1,0 +1,104 @@
+{simulation_start= 2, simulation_end =10, debug=yes}
+abstract class component {
+  attributes
+     series real V, I;
+}
+
+class source extends component {
+  constraints
+     sin(Time,V);  
+  constructors source() 
+    { }
+}
+
+class resistor 
+      extends component{
+ attributes
+    real R;
+ constraints
+    V = I * R;
+ constructor resistor(R1) 
+    { R = R1; }
+} 
+
+class inductor 
+       extends component {
+ attributes
+    real L;
+ constraints
+    V = L * (I - `I);
+ constructor inductor (L1) 
+    { L = L1;  I<1> = 0.0; }
+    monitor V,L;
+}
+
+class capacitor 
+       extends component {
+ attributes
+    real C;
+ constraints
+    I = C * (V -`V);
+ constructor capacitor(C1)
+    { C = C1; V<1> = 0.0;}
+}
+
+class series2 extends component
+{ 
+  attributes
+    component [] SC;
+  constraints
+    forall C in SC: C.I = I;
+    (sum C in SC: C.V) = V;
+  constructor series2(A) 
+     { SC = A; }
+}
+
+class parallel extends component
+{ 
+  attributes
+    component [] PC;
+  constraints
+    forall X in PC: (X.V = V);
+    (sum X in PC: X.I) = I;
+  constructor parallel(B) 
+     { PC = B; }
+}
+
+class samplecircuit {
+  attributes
+    source AC;
+    resistor R1,R2;  
+    inductor L;  
+    capacitor C;
+    series2 S;
+    parallel P;
+    component[] Ser;
+    component[] Par;             
+  constructor samplecircuit() {
+    R1 = new resistor(10.0);
+    R2 = new resistor(10.0);
+    L = new inductor(1.0);
+    C = new capacitor(0.1);
+    Ser[1] = R1; Ser[2] = L;  
+    Ser[3] = C; 
+    S = new series2(Ser);   
+    AC = new source();
+    Par[1] = S; Par[2] = AC;
+    Par[3] = R2;
+    P = new parallel(Par);
+  }
+}
+$
+Compile
+
+?- tcob2swi('ac_circuit.tcob','samplecircuit()').
+
+Load
+
+?- [ac_circuit].
+
+Run
+
+?- main(_,_). 
+or if debug = yes
+? - main(_,_,_). 
