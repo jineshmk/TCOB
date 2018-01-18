@@ -8,7 +8,7 @@ class source extends component {
   constraints
      sin(Time,V);  
   constructors source() 
-    { }
+     { }
 }
 
 class resistor 

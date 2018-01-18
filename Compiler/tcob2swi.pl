@@ -1,5 +1,5 @@
-%TCOB translator
-%Authors: Bharat Jayaraman,Pallavi,Jinesh
+%TCOB translator 
+%Authors: Bharat Jayaraman, Pallavi, Jinesh
 :- module(tcob2cob, [tcob2swi/2,cob2swi/1]).
 :- use_module(library(lists)).
 
