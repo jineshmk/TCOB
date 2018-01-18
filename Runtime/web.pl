@@ -11,7 +11,7 @@
 :- http_handler(root(.),	upload_form, []).
 :- http_handler(root(upload),	upload,      []).
 :- http_handler(root(draw),	draw,      []).
-:- http_handler(root('jquery.js'), http_reply_file('jquery.js', []), []). 
+:- http_handler(root('jquery1.js'), http_reply_file('jquery1.js', []), []). 
 :- http_handler(root('jquery_plantuml.js'), http_reply_file('jquery_plantuml.js', []), []). 
 :- http_handler(root('rawdeflate.js'), http_reply_file('rawdeflate.js', []), []).
 :- http_handler(root('basic.css'), http_reply_file('basic.css', []), []).
@@ -88,7 +88,7 @@ prolog:message(bad_file_upload) -->
 	
 %----template
 get_template('<html> <head>
-<script type="text/javascript" src="jquery.js"></script>
+<script type="text/javascript" src="jquery1.js"></script>
 <script type="text/javascript" src="jquery_plantuml.js"></script>
 <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.11/c3.min.css">  
 <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>

@@ -1,4 +1,4 @@
-{simulation_start= 2, simulation_end =900}
+{simulation_start= 2, simulation_end =900,debug=no}
 
 class trafficsensor{
  attributes 
@@ -15,20 +15,20 @@ class trafficlight{
      series Color C;
      trafficsensor Ts;
      trafficlight Tl;
-     series int NoV;
+     series int Total;
  constraints
         
-      C='green' --> NoV=0;
+      C='green' --> Total=0;
       %Add up number vehicle if light is not green
-      not(C='green') --> NoV=`NoV+Ts.V;
+      not(C='green') --> Total=`Total+Ts.V;
       
       %Keep green light based on number of vehicles
-     `C='red' & C='yellow' & NoV>0 --> G<1,NoV*5>C='green';
-     `C='red' & C='yellow' & NoV>0 --> F<NoV*5>C='yellow';
+     `C='red' & C='yellow' & Total>0 --> G<1,Total*5>C='green' & F<Total*5>C='yellow';
+    % `C='red' & C='yellow' & Total>0 --> F<Total*5>C='yellow';
      
      %keep green,if no traffic on other road
-     `C='green' & C='yellow' & Tl.NoV=0 --> G<1,NoV*5>C='green';
-     `C='green' & C='yellow' & Tl.NoV=0 --> F<NoV*5>C='yellow';
+     `C='green' & C='yellow' & Tl.Total=0 --> G<1,Total*5>C='green';
+     `C='green' & C='yellow' & Tl.Total=0 --> F<Total*5>C='yellow';
            
       
       %synchronization constraint
@@ -40,7 +40,7 @@ class trafficlight{
     Tl=TL;
     Ts=new trafficsensor();
     C<1> =C1; C<2> =C2;
-    NoV<2> =Ts.V<2>;
+    Total<2> =Ts.V<2>;
  }
 }
 
@@ -48,20 +48,13 @@ class system{
     attributes  
         trafficlight NS,EW;
     constraints
-        write(NS.C[Time]);
+        writeln(NS.C[Time]);
     constructor system(){
         NS=new  trafficlight('red','yellow',EW);
         EW=new trafficlight('green','yellow',NS);
     }
 }
 $
-
 ?- tcob2swi('itraffic.tcob','system()').
-
-Load
-
 ?- [itraffic].
-
-Run
-
 ?- main(_,_).

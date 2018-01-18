@@ -1,5 +1,4 @@
 % Adex model of neuron receiving excitatory and inhibitory synaptic inputs 
-%Author: Manjusha Nair M @Amrita University
 {simulation_start= 2, simulation_end =2500}
  class ampa
  {

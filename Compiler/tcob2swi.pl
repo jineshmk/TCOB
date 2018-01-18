@@ -1,5 +1,4 @@
 %TCOB translator
-%Recent change - line 1744 boolexpr
 %Authors: Bharat Jayaraman,Pallavi,Jinesh
 :- module(tcob2cob, [tcob2swi/2,cob2swi/1]).
 :- use_module(library(lists)).
@@ -402,14 +401,14 @@ printgpredicate(N,C,PT,A) :-
    pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),writeargumentlist(VarList),
    write(']) :- Hi1 is ceil(Hi),Lo<Hi1,'),tcobindex(I),write(I),write(' is Lo+T,'),writeindex(VarList,I),
    %ptconstraint(_,R,[1],_),
-   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),write('},Er,(')),ptconstraint(_,R,[1],_),write('))'),
+   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),write('},Er,('),ptconstraint(_,R,[1],_),write('))')),
    write(',Lo1 is Lo+1,'),write(N),write('( Lo1,Hi1,T,['),	writeargumentlist(VarList),write('])').
 printfpredicate(N,C,PT,A) :-
    write(N),write('( Lo,Hi,T,['),pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),
    writeargumentlist(VarList),write(']) :- Hi1 is ceil(Hi),Lo <Hi1,'),tcobindex(I),
    write(I),write( ' is T+Lo,'),writeindex(VarList,I),
    %ptconstraint(_,R,[1],_),write('.'),nl,
-   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),write('},Er,(')),ptconstraint(_,R,[1],_),write('))'),write('.'),nl,
+   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),write('},Er,('),ptconstraint(_,R,[1],_),write('))')),write('.'),nl,
    printfsecpredicate(N).
    
 printfsecpredicate(N) :-
@@ -546,6 +545,7 @@ ppliteral(X,PT,A,M):-
 %---Source(So) added to handle native cob program
 %---Otherwise add a Time variable in super class call
 cob2swi(File) :-
+   retractall(debug_option(_)),  assert(debug_option('no')),cob2swi1(File,2),
    cob2swi1(File,2).
 cob2swi1(File,So) :-
    atom_codes(File, FullCodes),
@@ -1150,6 +1150,8 @@ cobmaxpred(X) :-
 prettyprint([pred(Name, [], AttList, [])|T]) :-
    write(Name), write('('), write([]), write(','), write(AttList), debug_option(D),(D=yes-> write(','), write('ObjN');true),write(')'), write('.'), nl, nl,
    prettyprint(T).
+prettyprint([pred(Name, Att, AttList, [])|T]) :-
+   write(Name), write('('), write(Att), write(','), write(AttList),debug_option(D),(D=yes-> write(','), write('ObjN');true),write(')'), write('.'), nl,prettyprint(T).
 prettyprint([pred(Name, Att, AttList, ConstraintList)|T]) :-
    write(Name), write('('), write(Att), write(','), write(AttList),debug_option(D),(D=yes-> write(','), write('ObjN');true),write(')'), write(':-'), nl,
    ppconstraintlist(ConstraintList), write('.'), nl, nl,
@@ -1238,8 +1240,8 @@ amoper(negative(_,_)).
 dump2print([]) :- 
    print('true'). % dummy statement to end recursion without printing a comma
 dump2print([X|T]) :- 
-   write('print(\''), ppterm(X), write(' =  \'), '),
-   ppterm('print('), ppterm(X), write('), '),
+   write('write(\''), ppterm(X), write(' =  \'), '),
+   ppterm('write('), ppterm(X), write('), '),
    write('nl, '), dump2print(T).
 
 pphead(pred("",_)).
@@ -1498,9 +1500,9 @@ parsetcob(Tokens, ParseTree) :-
    resetclassnamecounter(_), resetkeywordcounter(_),
    time_program(ParseTree, Tokens, []), !.
 parsetcob(_,[]) :-
-   print('Syntax error in TCOB class '), classnamecounter(C),print(C),nl,
-   print('while parsing '), parsing(X), print(X),
-   keywordclausecounter(Y), print(Y), nl, fail.
+   write('Syntax error in TCOB class '), classnamecounter(C),write(C),nl,
+   write('while parsing '), parsing(X), write(X),
+   keywordclausecounter(Y), write(Y), nl, fail.
 %To read driver class name from argument
 getdriver(driver(Name,Attr))-->
    [id(Name)],['('], id_list(_,Attr),[')'].
@@ -1545,9 +1547,9 @@ class_list([]) -->
 parsecob(Tokens, ParseTree) :- 
    resetclassnamecounter(_), resetkeywordcounter(_), program(ParseTree, Tokens, []), !.
 parsecob(_,[]) :- 
-   print('Syntax error in COB class '), classnamecounter(C), print(C), nl,
-               print('while parsing '), parsing(X), print(X),
-               keywordclausecounter(Y), print(Y), nl, fail.
+   write('Syntax error in COB class '), classnamecounter(C), write(C), nl,
+               write('while parsing '), parsing(X), write(X),
+               keywordclausecounter(Y), write(Y), nl, fail.
 
 tcob_program([X|T]) -->
    tcob_class_definition(X), {!}, tcob_program(T).

@@ -1,9 +1,5 @@
 % model of synapses :  Single Exponential
 % ------------------------------------------------------------
-%     Gsyn = Gmax * Math.exp(-(t-t0)/tausyn)
-%      Isyn  = Gsyn *  (Vm- Esyn)
-%--------------------------------------------------------------
-%Author: Manjusha Nair M @Amrita University
 
 {simulation_start= 2, simulation_end =5000}
 class singleexponential

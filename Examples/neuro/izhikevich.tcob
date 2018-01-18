@@ -1,5 +1,4 @@
 % Izhikevich model of spiking neuron
-% Author: Manjusha Nair M @Amrita University
 
 {simulation_start= 2, simulation_end =5000}   %for 100 ms simulation time
 
