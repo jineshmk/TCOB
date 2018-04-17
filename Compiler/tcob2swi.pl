@@ -1,15 +1,18 @@
-%TCOB translator 
-%Authors: Bharat Jayaraman, Pallavi, Jinesh
+%TCOB translator
+%Authors: Bharat Jayaraman,Pallavi,Jinesh
+
 :- module(tcob2cob, [tcob2swi/2,cob2swi/1]).
 :- use_module(library(lists)).
 
-%----Main predicate- Execution starts here.
+%--Main predicate-
+%--Takes TCOB program and driver class as the input
 tcob2swi(File,Driver) :- atom_codes(File, FullCodes),
    atom_codes('.tcob',S),
    append(FileCodes, S ,FullCodes),
    atom_codes(Prefix,FileCodes),
    atom_concat(Prefix, '.cob', CobOutput),
    tcob2cob(File,Driver),!,cob2swi1(CobOutput,1).
+   
 %---TCOB To COB translation
 tcob2cob(File,Driver) :-
    atom_codes(File, FullCodes),
@@ -18,7 +21,7 @@ tcob2cob(File,Driver) :-
    atom_codes(Prefix,FileCodes),
    atom_concat(Prefix, '.cob', Output),
    tcob2cob(File,Output,Driver).
-
+   
 tcob2cob(File,Output,Driver) :-
    open(File,read,Stream),
    process(Stream, Output,Driver).
@@ -30,16 +33,20 @@ process(Stream, Output,Driver) :-
    tell(Output),
    translatetcob(ParseTree,Driver),!,nl,write('$'),
    told.
+   
 %---translate the program and write main class
-translatetcob([time(X,Y,Z,D)|T],Driver):- retractall(endsimtime(_)),retractall(debug_option(_)),
+translatetcob([time(X,Y,Z,D)|T],Driver):- 
+   retractall(endsimtime(_)),retractall(debug_option(_)),
    assert(endsimtime(Y)),assert(debug_option(D)),translatetcobprog(T,T,Z),processmain(Driver,[X,Y]),
    retractall(endsimtime(_)).
+   
 %---translate each class(X) of the program
 translatetcobprog([],_,_).
 translatetcobprog([X|T],ParseTree,SkipList) :-
    translatetcobclass(X,ParseTree,SkipList),!,nl,nl,
    translatetcobprog(T,ParseTree,SkipList).
-%---translate TCOB Class
+   
+%---translate each TCOB Class
 translatetcobclass(classdef(Name,Superclass, Attributes, Constraints,
   Predicates, Constructors,Debug, _),ParseTree,SkipList) :-
    writeclass(Name),processuperclass(Superclass),
@@ -59,6 +66,7 @@ processuperclass([]):- !.
 processuperclass(""):- !.
 processuperclass(Name) :-
    write(' extends '),!,write(Name).
+   
 %---Write attributes to COB program, replace series variable with array representation
 processtcobattr([]):- !.
 processtcobattr(X) :-
@@ -67,40 +75,44 @@ processtcobattr1([]).
 processtcobattr1([att(Type,Var)|T]) :-
    tab(1),getdecl(Type,Decl),dumpprint(Decl),write(Var),
    write(';'),nl,!,processtcobattr1(T).
+   
 %---Extract attributes from parsetree
 getclassattr(_,[],[]).
 getclassattr(N,[classdef(N,_,Attr,_,_,_,_,_)|_],Attr).
 getclassattr(N,[classdef(abstract(N),_,Attr,_,_,_,_,_)|_],Attr).
 getclassattr(N,[_|T],Attr):-
    getclassattr(N,T,Attr).
-%---Write constraints to COB program
+   
+%---Write constraints to COB program, 
 processtcobconstri(_,[],_,_,_,_,[]):-!.
 processtcobconstri(_,[],A,_,_,_,Debug):-
     write('constraints'),!,nl,processdebuginfo(Debug,A).
 processtcobconstri(PT,C,A,P,N,T,Debug) :-
-  
    write('constraints'),!,nl, processdebuginfo(Debug,A),processtcobconstri1(PT,C,A,P,N,T),nl.
 
-%---Process debug
+%---Process debug information, if debug=yes
 processdebuginfo([],_).
-
 processdebuginfo([X|T],A) :- 
   debug_option(V),(V=yes -> tabs(1),write('logvar(Time,\''),write(X),write('\','),
   ptterm(X,A),write(',ObjN);'),nl,processdebuginfo(T,A);true).
 
+%---Process constraints in TCOB class
 processtcobconstri1(_,[],_,_,_,_) :-!.
 processtcobconstri1(ParseTree,Constraints,Attributes,Pred,Name,SkipList) :-
    handletimeloop(ParseTree,Constraints,Attributes,Pred,Name,SkipList).
-%---write predicates to TCOB class, which include mto predicates extracted TCOB class
+   
+%---write predicates to TCOB class, which include mto predicates extracted from TCOB class
 processtcobpredicates([],[],_,_).
 processtcobpredicates([class_predicates(X)],Y,PT,Attr) :-
    write('predicates'),nl, writepredicates1(X),writemtopredicates(Y,PT,Attr),nl.
 processtcobpredicates([],Y,PT,Attr) :-
    write('predicates'),nl, writemtopredicates(Y,PT,Attr),nl.
 
+%-- write constructors to COB file
 processtcobconstructor([]).
 processtcobconstructor(X):-
    write('constructors'),nl,writeconstructor1(X).
+   
 %---Identify the type of attributes from parse tree
 getdecl(primitive(Type),[Type,' ']).
 getdecl(user(Type),[Type,' ']).
@@ -118,12 +130,8 @@ getdecl(array(user(Type), [Size1,Size2]),[Type,'  [',Size1,'][',Size2,']'] ) .
 getdecl(array(primitive(Type), Size),[Type,' ',Size] ) .
 getdecl(array(user(Type),Size),[Type,' ', Size]).
 
-dumpprint([]).
-dumpprint([[H]]) :-
-   integer(H),write('['),write(H),write(']').
-dumpprint([H|T]) :-
-   ptterm(H,[]),dumpprint(T).
-%---Check time loop skip list, if not in the list process with Time variable
+
+%---Check time loop skip list, if not in the list, process with Time variable
 handletimeloop(PT,Constraints,Attributes,Mtopredlist,Name,SkipList) :-
    ( checkSkipList(SkipList,Name) ->  pptcobconstraintlist(PT,Constraints,_,_);
    tab(1),nl,tab(1),getmtoconstraints(Constraints,Mtopred),
@@ -134,33 +142,34 @@ writepredicates1([]).
 writepredicates1([X|T]) :-
    dumpprint(X),nl,writepredicates1(T).
 
+%-- write constructor to COB file, add additional 'Time' argument as constructor parameter
 writeconstructor1([]).
 writeconstructor1([constructor(Name,AL,C)|T]) :-
    write(Name),write('( Time'),addcomma(AL),writeargument(AL),write('){'),
    pptcobconstraintlist(_,C,_,_),addsemic(C),write('}'),nl,writeconstructor1(T).
-%----Write main class time based simulation
+   
+%----Write main class for time based simulation
 processmain(Driver,[S,E]) :-
    atom_codes(Driver,X),tokenize(X,Out),
    getdriver(driver(N,Attr),Out,[]),write('class main'),nl,write('{'),
    nl,tabs(1),write('attributes' ), nl,tabs(2),write(N),write(' Main;'),
    nl, tabs(1),write('constructor main'),write('(' ),writeargument(Attr),
-  
    write(')'),write('{'),nl,
    write('forall Time in '), write(S),write('..'),
-  
    write(E),write(':('),nl,
    write('Main = new '),write(N),write('(Time'),  
    addcomma(Attr),writeargument(Attr),write(')'),
    write(');'),nl,write('}'),nl,write('}').
 
 %---Process constraints list, contain Parse tree and attributes for series variable 
-%---process Mto to process metric temporal constraints
+%---collect Mto  constraints
 pptcobconstraintlist(_,[],[],_). 
 pptcobconstraintlist(PT,[X],Attributes,Mto):-
    tabs(1), ptconstraint(PT,X,Attributes,Mto).
 pptcobconstraintlist(PT,[X|T],Attributes,Mto) :-
    ptconstraint2(PT,X,Attributes,Mto), !,tabs(1),
    pptcobconstraintlist(PT,T,Attributes,Mto).
+   
 %---Get MTO constraints from constraints list
 getmtoconstraints([],[]).
 getmtoconstraints([X|T],MtoC) :-
@@ -176,6 +185,14 @@ getmtoconstraints(_,[]).
 addcomma([]).
 addcomma(_) :-
    write(', ').
+
+ %--print for predicates in TCOB class  
+dumpprint([]).
+dumpprint([[H]]) :-
+   integer(H),write('['),write(H),write(']').
+dumpprint([H|T]) :-
+   ptterm(H,[]),dumpprint(T).
+   
 %---Process argument list for constructor and predicates
 writeargument([]).
 writeargument([att(_,X)|T]) :-
@@ -193,14 +210,17 @@ writeargumentlist(X):-
 writeargumentlist2([]).
 writeargumentlist2(T):-
    !,write(','),writeargumentlist(T).
+   
 %Check the class in time loop skip list
 checkSkipList([Name|_],Name).
 checkSkipList([_|T],Name) :-
    checkSkipList(T,Name).
 
+%--add semicolon 
 addsemic([]).
 addsemic(_):- write(';').
-%---Different way to process constraints in TCOB program
+
+%---Different types constraints in TCOB program
 ptconstraint2(_,compare('=', Term1, Term2),_,_) :-
    Term1 == Term2, !.
 ptconstraint2(_,'true',_,_) :-
@@ -235,6 +255,7 @@ ptconstraint(PT,[X|T],Attr,_) :-
    !, ptconstraint(PT,X,Attr,_),write(','),ptconstraint(PT,T,Attr,_).
 ptconstraint(PT,constraintPred(N,X),A,_) :-
    write(N),write('('),ptpredargument(PT,X,A),write(')').
+   
 %---Replace mto constraints with corresponding predicate call
 ptconstraint(PT,mto('G',time(Start,End),C),A,P) :-
    getgpredicatename(P,C,N), write(N),write('('),
@@ -257,6 +278,7 @@ ptconstraint(PT,mto('F',[],C),A,P) :-
 ptconstraint(PT,mto('G',[],C),A,P) :-
    getgpredicatename(P,C,N),  write(N), endsimtime(Y),write('(Time,'),Y1 is Y+1,write(Y1),write(',0,['),
    getvars(PT,A,C,Vars),writeargumentlist(Vars),write('])').
+   
 %---To process series variable in reference,extract attributes from refered object 
 ptconstraint(PT,ref(ind(X,I),V),Attr,_):-
    getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),
@@ -268,10 +290,9 @@ ptconstraint(_,ref(next(X),V),Attr,_):-
 ptconstraint(PT,ref(X,V),Attr,_):-
    getobjattr(PT,X,Attr,Attributes),append(Attributes,Attr,NewAttr),
    ptterm(X,Attr),write(.),ptterm(V,NewAttr).
-
-   
 ptconstraint(PT,not(C),Attr,_) :-
    write('not('),ptconstraint(PT,C,Attr,_),write(')').
+   
 %---Quantified constraint handler
 ptconstraint(PT,uquant(I,fromto(X,Y),C),Attr,Mto) :-
    write('forall '),write(I),write(' in '), write(X),write('..'),
@@ -280,7 +301,6 @@ ptconstraint(PT,uquant(I,Obj,C),Attr,Mto) :-
    write('forall '),write(I),write(' in '), ptterm(Obj,Attr),write(':('),
    getobjattr(PT,Obj,Attr,Attributes),append(Attributes,Attr,NewAttr),
    pptcobconstraintlist(PT,C,NewAttr,Mto),write(')').
-   
 ptconstraint(PT,equant(I,fromto(X,Y),C),Attr,Mto) :-
    write('exists '),write(I),write(' in '), write(X),write('..'),
    write(Y),write(':('),pptcobconstraintlist(PT,C,Attr,Mto),write(')').
@@ -296,12 +316,10 @@ ptconstraint(PT,summation(In,Obj,C),Attr,Mto) :-
    write('sum '),write(In),write(' in '), ptterm(Obj,Attr),write(':('),
    getobjattr(PT,Obj,Attr,Attributes),append(Attributes,Attr,NewAttr),
    ptconstraint(PT,C,NewAttr,Mto),write(')').
-   
 ptconstraint(PT,minimum(In,Obj,C),Attr,Mto) :-
    write('min '),write(In),write(' in '), ptterm(Obj,Attr),write(':('),
    getobjattr(PT,Obj,Attr,Attributes),append(Attributes,Attr,NewAttr),
    ptconstraint(PT,C,NewAttr,Mto),write(')').
-   
 ptconstraint(PT,maximum(In,Obj,C),Attr,Mto) :-
    write('max '),write(In),write(' in '), ptterm(Obj,Attr),write(':('),
    getobjattr(PT,Obj,Attr,Attributes),append(Attributes,Attr,NewAttr),
@@ -310,7 +328,8 @@ ptconstraint(PT,condConstr([ConstraintX|T], Literals),Attr,Mto) :-
    pptcobconstraintlist(PT,[ConstraintX],Attr,Mto), write(':-'),
    ppliterals(Literals,PT,Attr,Mto),length(T,L),!,
    (L>0->(write(';'),nl,ptconstraint(PT,condConstr(T, Literals),Attr,Mto));!).
-%---Add Time variable in constructor call
+   
+%---write constructor call with additional 'Time' variable
 ptconstraint(_,new(O,C,A),Attr,_) :-
    ptterm(O,Attr), write(' = new '),write(C),
    write('( Time'),addcomma(A),!, ptterms(A,Attr),write(')').
@@ -322,6 +341,7 @@ ptconstraint(_,builtinclpr(X),_,_) :-
    write(X).
 ptconstraint(_,T,A,_):-
    ptterm(T,A).
+   
 %---Print tcob terms,Check variable is series or not. If series add Time index
 ptterms([],_).
 ptterms([X],[]) :-
@@ -367,30 +387,32 @@ ptterm(enclosed(T),A) :-
 %ppterms([X],A) :- ppterm(X,A).
 ptterm(X,_) :-
    ppterm(X).
+   
 %---Check for series variable
 seriescheckvariable([att(series(_),V)|_],V).
 seriescheckvariable([att(array(series(_),_),V)|_],V).
 seriescheckvariable([_|T],V) :-
    seriescheckvariable(T,V).
+   
 %---Add unique name for MTO predicates and print it in the predicate section of COB class
 getgpredicatename(dcobG(N,_,C),C,N):-!.
 getgpredicatename([H|_],C,N) :-
    getgpredicatename(H,C,N).
 getgpredicatename([_|T],C,N) :-
    getgpredicatename(T,C,N).
-
 getfpredicatename(dcobF(N,_,C),C,N):-!.
 getfpredicatename([H|_],C,N) :-
    getfpredicatename(H,C,N).
 getfpredicatename([_|T],C,N) :-
    getfpredicatename(T,C,N).
 
-writemtopredicates([],_,_).
+   writemtopredicates([],_,_).
 writemtopredicates([X|T],PT,Attr) :-
    writemtopredicates1(X,PT,Attr),writemtopredicates(T,PT,Attr).
 
 writemtopredicates1(X,PT,A) :-
    ppmtopredicate(X,PT,A),write('.'),nl.
+   
 %---Index for series variable in MTO constraints
 writeindex([],_).
 writeindex([H|T],I) :-writeindex(H,I),writeindex(T,I).
@@ -401,14 +423,16 @@ printgpredicate(N,C,PT,A) :-
    pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),writeargumentlist(VarList),
    write(']) :- Hi1 is ceil(Hi),Lo<Hi1,'),tcobindex(I),write(I),write(' is Lo+T,'),writeindex(VarList,I),
    %ptconstraint(_,R,[1],_),
-   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),write('},Er,('),ptconstraint(_,R,[1],_),write('))')),
+   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),
+   write('},Er,('),ptconstraint(_,R,[1],_),write('))')),
    write(',Lo1 is Lo+1,'),write(N),write('( Lo1,Hi1,T,['),	writeargumentlist(VarList),write('])').
 printfpredicate(N,C,PT,A) :-
    write(N),write('( Lo,Hi,T,['),pmtoargument(C,PT,A,R),getvars(PT,A,R,VarList),
    writeargumentlist(VarList),write(']) :- Hi1 is ceil(Hi),Lo <Hi1,'),tcobindex(I),
    write(I),write( ' is T+Lo,'),writeindex(VarList,I),
    %ptconstraint(_,R,[1],_),write('.'),nl,
-   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),write('},Er,('),ptconstraint(_,R,[1],_),write('))')),write('.'),nl,
+   (checkquotedstring(C) -> ptconstraint(_,R,[1],_);write('catch({'),ptconstraint(_,R,[1],_),
+   write('},Er,('),ptconstraint(_,R,[1],_),write('))')),write('.'),nl,
    printfsecpredicate(N).
    
 printfsecpredicate(N) :-
@@ -432,6 +456,7 @@ ppmtopredicate(dcobF(N,time(_),C),PT,A) :-
 
 writedefaultG(N) :-
    write(N),write('(Lo,Lo,_,_):-!.'),nl,write(N),write('(Lo,Hi,_,_):-Lo>=Hi,!.'),nl.
+   
 %---Process MTO constraints argument
 pmtoargument([],_,_,[]).
 pmtoargument([H|T],PT,A,[AH|AT]) :- 
@@ -478,7 +503,8 @@ tcobref(X):-
    gensym('Tcobref',X).
 tcobvar(X):- 
    gensym('Tcobvar',X).
-%--Extract variable from a constraints
+
+%--Extract variable from a constraints for MTO predicates
 getvars(_,_,[],[]).
 getvars(PT,Attr,[HP|TP],Var) :- getvars(PT,Attr,HP,H),getvars(PT,Attr,TP,T),append(H,T,Var).
 getvars(PT,Attr,compare(_,Term1,Term2),Var) :-
@@ -506,9 +532,6 @@ getvars(_,_,const(_),[]).
 getvars(_,_,quotedString(_),[]).
 getvars(_,_,X,[X]).
 %getvars(_,_,_,[]):- !.
-
-
-
 
 
 ptpredargument(_,[],_).
@@ -609,7 +632,8 @@ translateone(Name, Superclass, Attributes, Constraints, constructor(Name, Att1, 
    translateconstraints(Constraints, L, C, P2, Name, []),
    append(TD, CC, C1),    append(C1, C, C2), append(P1, P2, P),
    %cobvar(X), 
-  debug_option(V),(V=yes-> (append([call(Superclass,[['Time'], SAtt,'ObjN'])], C2, ConstraintList));append([call(Superclass,[['Time'], SAtt])], C2, ConstraintList)).
+  debug_option(V),(V=yes-> (append([call(Superclass,[['Time'], SAtt,'ObjN'])], C2, ConstraintList));
+  append([call(Superclass,[['Time'], SAtt])], C2, ConstraintList)).
 translateone(Name, "", Attributes, Constraints, L, [pred(Name, ['Time'], AttList,  ConstraintList)|P]) :-
    translatetypedecl(Attributes, TD),
    removetypedecl(Attributes, AttList),
@@ -625,8 +649,7 @@ translateone(Name, Superclass, Attributes, Constraints, L, [pred(Name, [], AttLi
    cobvar(X), append([call(Superclass,[X, SAtt])], C1, ConstraintList).
    
    
-%%%%For pure COB
-
+%--For pure COB
 translateclass1(classdef(Name, Superclass, Attributes, Constraints,
                Predicates, Constructors, _), L, Class) :-
    translate1(Name, Superclass, Attributes, Constraints, Constructors, L, C1),
@@ -659,7 +682,8 @@ translateone1(Name, Superclass, Attributes, Constraints, constructor(Name, Att1,
    translateconstraints(Constraints, L, C, P2, Name, []),
    append(TD, CC, C1),    append(C1, C, C2), append(P1, P2, P),
    cobvar(X), 
-    debug_option(V),(V=yes-> append([call(Superclass,[[X], SAtt,'ObjN'])], C2, ConstraintList);append([call(Superclass,[[X], SAtt])], C2, ConstraintList)).
+    debug_option(V),(V=yes-> append([call(Superclass,[[X], SAtt,'ObjN'])], C2, ConstraintList);
+    append([call(Superclass,[[X], SAtt])], C2, ConstraintList)).
 translateone1(Name, "", Attributes, Constraints, L, [pred(Name, [X], AttList,  ConstraintList)|P]) :-
    translatetypedecl(Attributes, TD),
    removetypedecl(Attributes, AttList),
@@ -967,7 +991,8 @@ translateterm(minimum(V, E, Term), L, Y, Pred_call,
                                                  [call(Minover, [var('Tail'), functor(SSTerm), var(Z)])],
 %else part is redundant since a non-ground Tail will match the first clause.
                                                  [compare(=, var(Z), TTerm)])|Calls]))
-               |P], Name, 'Real', EType) :-   translateterm(E, L, TTerm1, Calls1, _, Name, 'Real', EType), append(Calls1,[call(Minover, [TTerm1, functor(STerm), Y])],Pred_call),
+               |P], Name, 'Real', EType) :-   translateterm(E, L, TTerm1, Calls1, _, Name, 'Real', EType), append(Calls1,
+               [call(Minover, [TTerm1, functor(STerm), Y])],Pred_call),
    cobvar(Y), cobminpred(Minover), cobvar(W), subst(V, W, Term, STerm), cobvar(Z),
    cobvar(U), subst(W, U, STerm, SSTerm),
    !, typeof(E, Name, L, EType, TypeofE), append([att(user(TypeofE), var(W))], EType, EType1),
@@ -1035,11 +1060,14 @@ isCobvarorConst(const(N)) :-
 process_object(Ori,Trans,Index,ONF,Cl4):- 
      (Ori = Trans -> get_simple_name(Ori,ONF,Cl4) ; get_index_name(Index,ONF,Cl4)).
    
-  get_index_name(Index,IN,[ call(getname,[ONF,In,IN])]):-  get_index(Index,Va,In),string_concat('\'', Va,ON),string_concat(ON,'\'',ONF) ,cobvar(IN).
+get_index_name(Index,IN,[ call(getname,[ONF,In,IN])]):-  
+     get_index(Index,Va,In),string_concat('\'', Va,ON),
+     string_concat(ON,'\'',ONF) ,cobvar(IN).
    
-   get_simple_name(Ori, ONF,[]):- string_concat('\'', Ori,ON),string_concat(ON,'\'',ONF).
-  get_index([call(index,[X,V,_])],V,X).
-   get_index(_,0,0).
+get_simple_name(Ori, ONF,[]):-
+     string_concat('\'', Ori,ON),string_concat(ON,'\'',ONF).
+get_index([call(index,[X,V,_])],V,X).
+get_index(_,0,0).
 
 typeof(V, Name, L, _, Type) :-
    attributesofclass(Name, L, Att),
@@ -1148,12 +1176,14 @@ cobmaxpred(X) :-
 
 %--Print predicates to CLP file
 prettyprint([pred(Name, [], AttList, [])|T]) :-
-   write(Name), write('('), write([]), write(','), write(AttList), debug_option(D),(D=yes-> write(','), write('ObjN');true),write(')'), write('.'), nl, nl,
-   prettyprint(T).
+   write(Name), write('('), write([]), write(','), write(AttList), debug_option(D),(D=yes-> write(','),
+   write('ObjN');true),write(')'), write('.'), nl, nl,   prettyprint(T).
 prettyprint([pred(Name, Att, AttList, [])|T]) :-
-   write(Name), write('('), write(Att), write(','), write(AttList),debug_option(D),(D=yes-> write(','), write('ObjN');true),write(')'), write('.'), nl,prettyprint(T).
+   write(Name), write('('), write(Att), write(','), write(AttList),debug_option(D),(D=yes-> write(','), 
+   write('ObjN');true),write(')'), write('.'), nl,prettyprint(T).
 prettyprint([pred(Name, Att, AttList, ConstraintList)|T]) :-
-   write(Name), write('('), write(Att), write(','), write(AttList),debug_option(D),(D=yes-> write(','), write('ObjN');true),write(')'), write(':-'), nl,
+   write(Name), write('('), write(Att), write(','), write(AttList),debug_option(D),(D=yes-> write(','), 
+   write('ObjN');true),write(')'), write(':-'), nl,
    ppconstraintlist(ConstraintList), write('.'), nl, nl,
    prettyprint(T).
 prettyprint([pred_clause(Head, pred_body([]))|T]) :-
@@ -1188,13 +1218,17 @@ ppconstraint('true') :- write('true').
 ppconstraint(compare('is', Term1, Term2)) :-  
    ppterm(Term1), write('  '), write('is'), write('  '), ppterm(Term2) .
 ppconstraint(compare(R, Term1, Term2)) :-
-   amoper(Term1),write('{'), ppterm(Term1), write('  '), write(R), write('  '), ppterm(Term2), write('}') . % modified
+   amoper(Term1),write('{'), ppterm(Term1), write('  '), write(R), write('  '), 
+   ppterm(Term2), write('}') . % modified
 ppconstraint(compare(R, Term1, Term2)) :-  
-   amoper(Term2),write('{'), ppterm(Term1), write('  '), write(R), write('  '), ppterm(Term2), write('}'). % modified
+   amoper(Term2),write('{'), ppterm(Term1), write('  '), write(R), write('  '), 
+   ppterm(Term2), write('}'). % modified
 ppconstraint(compare(R, Term1, Term2)) :- 
-   relop(R), R \== '=', write('{'), ppterm(Term1), write('  '), write(R), write('  '), ppterm(Term2),  write('}').
-   ppconstraint(compare(R, Term1, Term2)) :- 
-   var(Term1),var(Term2), write('{'), ppterm(Term1), write('  '), write(R), write('  '), ppterm(Term2),  write('}').
+   relop(R), R \== '=', write('{'), ppterm(Term1), write('  '), write(R),
+   write('  '), ppterm(Term2),  write('}').
+ppconstraint(compare(R, Term1, Term2)) :- 
+   var(Term1),var(Term2), write('{'), ppterm(Term1), write('  '), write(R), 
+   write('  '), ppterm(Term2),  write('}').
 ppconstraint(compare(R, Term1, Term2)) :-  
    ppterm(Term1), write('  '), write(R), write('  '), ppterm(Term2).
 
@@ -1258,9 +1292,8 @@ ppliterals([X|T]) :-
    tabs(1),
    ppliteral(X), write(','), nl,
    ppliterals(T).
-
-ppliteral(X):- ppconstraint(X).
-
+ppliteral(X):- 
+  ppconstraint(X).
 
 ppclasspredicates([]).
 ppclasspredicates([L|Rest]) :-
@@ -1402,7 +1435,6 @@ ppmakelistterms([X|T]) :-
    ppterm(X), ppmakelistterms(T).
 ppmakelistterms([]).
 
-
 tabs(0) :- !.
 tabs(N) :-
    write('   '), M is N-1, tabs(M).
@@ -1428,7 +1460,7 @@ extractvars([X|Tail], V) :-
    extractvars(X, Vx), extractvars(Tail, Vt), append(Vx, Vt, V).
 extractvars(enclosed(Term), V) :-
    extractvars(Term, V).
-%next clause added on June 12 2003
+%next clause added on 
 extractvars(negative(Term), V) :-
    extractvars(Term, V).
 extractvars(pow(A, B), V) :-
@@ -1561,6 +1593,7 @@ program([X|T]) -->
 program([]) -->
    [].
 
+   %-- TCOB class parsing
 tcob_class_definition(
   classdef(Name, Superclass, Attributes, Constraints,
   Predicates, Constructors, Debug, Num_instances)) -->
@@ -1737,6 +1770,7 @@ qnt_constraint_lst([]) --> [].
 simple_constraint(X) --> conditional_constraint(X).
 simple_constraint(X) --> constraint_atom(X).
 
+%--Parsing MTO constraints
 constraint_atom(mto('G',X,C)) -->
    ['G'],[<],time_interval(X),[>],['('],literals(C),[')'].
 constraint_atom(mto('G',X,[C])) -->
@@ -1967,6 +2001,7 @@ one_pred_clause(['.']) -->
 one_pred_clause([X|Rest]) -->
    [X], one_pred_clause(Rest).
 
+%--Parsing constructor section in class definition
 constructors(Constructors) -->
    [constructors], {!}, {seen('constructors: near constraint #'),
    resetkeywordclausecounter(_)},  constructor_clauses(Constructors).
@@ -1975,7 +2010,7 @@ constructors(Constructors) -->
    resetkeywordclausecounter(_)},  constructor_clauses(Constructors), {Constructors = [_]}.
 constructors([]) --> [].
 
-
+%--Parsing constructors
 constructor_clauses([constructor(Name, Attributes, ConstructorConstraintList)|T]) -->
    class_id(Name), {seterrormessage(_), namematch(Name)}, ['('], id_list(_,Attributes), [')'], ['{'], %resetkeywordclausecounter(_)},
    constraint_list(ConstructorConstraintList), ['}'], constructor_clauses(T). %correct call to id_list
@@ -1991,8 +2026,6 @@ namematch(Name) :-
    classnamecounter(Name), seen('constructor : near constraint #').
 namematch(_) :-
    classnamecounter(_), fail.
-
-%---helper predicates
 
 make_ind(A, [], A).
 make_ind(A, [T|Rest], Ind) :- 
@@ -2014,7 +2047,6 @@ seen(X) :-
    retractall(parsing(_)), assert(parsing(X)).
 
 %---added to accomodate formulae
-
 boolexpr(Y)     --> 
    boolterm(X), boolterm2(X,Y).
 
@@ -2044,7 +2076,6 @@ var(X)  -->
 var(next(X))  --> 
    [id(X)],['`'].
 
-
 int(X)  --> 
    [num(X)].
 
@@ -2057,13 +2088,13 @@ operator(->, impl).
 operator(and, and).
 operator(or, or).
 
-
-%debug
+%--monitor clause parsing
 debug(Debug) -->
    [monitor], {!},
    debug_list(Debug).
 debug([]) --> [].
 
+%--Get list of attributes to be monitored
 debug_list(X) -->
    debug_attr(X), [';'].
 debug_list([]) --> [].
@@ -2155,7 +2186,7 @@ special('$',[36|L],L).
 special('&',[38|L],L).
 special('->',[45,62|L],L).
 special('-->',[45,45,62|L],L). %for new conditional condConstr
-special(_,[95|L],L). % in alpha also. is that ok ?
+special(_,[95|L],L). % in alpha also.
 special(:=,[58,61|L],L).
 special(=<,[61,60|L],L).
 special(>=,[62,61|L],L).
@@ -2230,11 +2261,11 @@ keyword(next).
 keyword(not).
 keyword(min).
 keyword(max).
-%tcob
+%--Specific for tcob
 keyword(series).
 keyword('G').
 keyword('F').
-%
+%--Debug 
 keyword(monitor).
 
 digits(dnum(N,M,Z)) --> 
@@ -2276,5 +2307,5 @@ digitsoridentifier(N) -->
 digitsoridentifier(X) --> 
    identifier(id(X)).
 
-%------------------LEX ANALYZER END------------------------------------------------------------
+%--LEX ANALYZER END----------
    
