@@ -1,0 +1,274 @@
+{simulation_start= 1, simulation_end =200,debug=yes}
+
+class packet{
+    attributes
+        int Prl,Src,Dst,SrPt,DsPt,TS;
+        String Flag,Data;
+    constraints
+        0 <= Prl;  Prl  <= 255;
+        0 <= Src;  Src  <= 4294967295;
+        0 <= Dst;  Dst  <= 4294967295;
+        0 <= SrPt; SrPt <= 65535;
+        0 <= DsPt; DsPt <= 65535;
+    constructors packet(Prc,Sr,Ds,SrP,DsP,Flg,Ti,D1){
+        Prl = Prc; Src = Sr;
+        Dst = Ds; SrPt = SrP;
+        DsPt = DsP; Flag = Flg;
+        Data = D1; TS = Ti;
+    }
+}
+
+%Network interface
+abstract class ni{
+    attributes
+        series packet In,Out,In1,Out1;
+        int IP;
+    constraints
+        0 <= IP;  IP  <= 4294967295;
+}
+class dmz_server extends ni{
+    attributes
+        int Port,DPrt,SIP,TCP,UDP,ICMP,Ra;
+        series packet Pkt;
+        %series packet In1,Out1;
+        series int Syn,Con;
+        firewall Fw1,Fw2;
+    constraints
+        Fw1.In1 = In;
+        Fw1.Out = Out;
+        Fw2.In = Out1;
+        Fw2.Out = In1;
+        ICMP = 1;TCP = 6; UDP = 17;
+        Time =1 --> random(1,10,Ra);
+        Time = Ra --> Pkt = new packet(UDP,IP,SIP,8080,53,0,Time,0) & F(Out1=Pkt[Time]);
+        In.Dst=IP & In.Prl = ICMP & In.Flag = 'REQ'  -->
+                    Pkt = new packet(ICMP,IP,In.Src,0, 0,'RES',Time,In.Data) & F(Out=Pkt[Time]);
+        In.Dst=IP & In.DsPt = Port & In.Prl =TCP & In.Flag='SYN'  -->
+                    Pkt = new packet(TCP,IP,In.Src,Port, In.SrPt,'SYN+ACK',Time,0) & F(Out=Pkt[Time]) & Syn=In.Src ;
+        In.Dst=IP & In.DsPt = Port & In.Prl =TCP & In.Flag='ACK' --> Con = In.Src;
+        In.Dst=IP & In.DsPt = Port & In.Prl =TCP & In.Flag=1  -->
+                    Pkt = new packet(TCP,IP,In.Src,Port, In.SrPt,1,Time,In.Data+1) & F(Out=Pkt[Time]) ;
+    constructors dmz_server(Ip,Pt1,SIP,Pt2,FW1,FW2){
+        IP = Ip; Port = Pt1; DPrt = Pt2;
+        FW1 = Fw1; FW2 = Fw2;
+    }
+   
+}
+
+class server extends ni{
+    attributes
+        int Port,TCP,UDP,ICMP;
+        series packet Pkt;
+        firewall Fw;
+    constraints
+        Fw.In1 = In;
+        Fw.Out = Out;
+        ICMP = 1;TCP = 6; UDP = 17;
+        In.Dst=IP & In.Prl = ICMP & In.Flag = 'REQ'  -->
+                    Pkt = new packet(ICMP,IP,In.Src,0, 0,'RES',Time,In.Data) & (In=Pkt[Time]);
+        In.Dst=IP & In.Prl = TCP & In.Flag = 'SYN'  -->
+                    Pkt = new packet(TCP,IP,In.Src,0, 0,'SYN+ACK',Time,In.Data) & (In=Pkt[Time]);
+        In.Dst=IP & In.DsPt = Port& In.Prl =UDP  -->
+                    Pkt = new packet(UDP,IP,In.Src,Port, In.SrPt,0,In.Time,Data+1) & (Out=Pkt[Time]) ;
+        
+    constructors server(Ip,Pt1,FW){
+        IP = Ip; Port = Pt1; FW= Fw;
+    }
+  
+
+}
+
+class client extends ni{
+    attributes
+        int Port,Con,DIP,DPrt,Ra,TCP,UDP,ICMP;
+        firewall FW;
+        series packet Pkt;
+        int Con;
+        series int Ra1;
+    constraints
+        FW.In = Out;
+        FW.Out = In;
+        Time = 1 --> random(1025, 65535, Port);
+        Time = 1 --> random(1,10, Ra);
+        Time = 1 --> random(1,10, Ra1);
+        Time = 1 -->  Pkt = new packet(ICMP,IP,DIP,0, 0,'REQ',Time,1) & F(Out=Pkt[Time]);
+        Time = Ra --> Pkt= new packet(TCP,IP,DIP,Port, DPrt,'SYN',Time,0) &  F(Out=Pkt[Time]);
+        In.Dst=IP & In.DsPt = Port & In.Prl =TCP & In.Flag='SYN+ACK' & In.Src = DIP & In.SrPt =DPrt -->
+                            Pkt= new packet(TCP,IP,DIP,Port, DPrt,'ACK',Time,0) & (Out`=Pkt[Time]) & Con=1;
+        Con=1 & Time > Ra & Ra1=Time-->  Pkt= new packet(TCP,IP,DIP,Port, DPrt,1,Time,1) & (Out=Pkt[Time]);
+    constructors client(Ip,DIp,Dprt,Fw){
+            IP = Ip;    DIP = DIp;  DPrt = Dprt;
+             ICMP = 1;TCP = 6; UDP = 17; FW=Fw;
+    }
+  
+}
+
+class attacker extends ni{
+    attributes
+        int Con,DIP,TCP,UDP,ICMP;
+        firewall FW;
+        series int DPrt,Port,Ti;
+        series packet Pkt;
+
+    constraints
+        FW.In = Out;
+        FW.Out = In;
+        ICMP = 1;TCP = 6; UDP = 17; FW=Fw;
+        random(1025,65535,Port);
+        random(0,65535,DPrt);
+        random(1,10,Ti);
+        %writeln(Ti);
+        Ti = 2 -->  Pkt = new packet(UDP,IP,DIP,Port,DPrt,0,Time,0) &  F(Out=Pkt[Time]);
+        Ti  = 1 -->  Pkt= new packet(TCP,IP,DIP,Port, 80,'SYN',Time,10000) &  F(Out=Pkt[Time]);
+    constructors attacker(Ip,DIp,Fw){
+            IP = Ip;    DIP = DIp;
+
+    }
+   
+}
+class acl{
+    attributes
+        int Ru,SPrl,EPrl,SSrc,ESrc;
+        int SDst,EDst,SSrPt,ESrPt,Allow;
+        int SDsPt,EDsPt,SWM,DWM;
+        String Srcv,Dstv,Prlv;
+        series packet Pkt;
+        %series int De;
+    constraints
+        Srcv = 'any' --> SSrc = 0 & ESrc = 4294967295;
+        Dstv = 'any' --> SDst = 0 & EDst = 4294967295;
+        Srcv = 'any' --> SSrPt = 0 & ESrPt = 65535;
+        Dstv = 'any' --> SDsPt = 0 & EDsPt = 65535;
+        Prlv = 'any' --> SPrl  = 0 & EPrl = 255;
+        ESrc = SSrc + SWM;
+        EDst = SDst + DWM;
+
+        SPrl <= Pkt.Prl;
+        Pkt.Prl <= EPrl ;
+        SSrc <= Pkt.Src;
+        Pkt.Src <= ESrc;
+        SDst <= Pkt.Dst;
+        Pkt.Dst <= EDst;
+        SSrPt <= Pkt.SrPt ;
+        Pkt.SrPt <=ESrPt ;
+        SDsPt <= Pkt.DsPt;
+        Pkt.DsPt <=EDsPt;
+        %Allow = Pkt.FD;
+  constructors
+  acl(R,Al){
+       Ru = R;   Srcv = 'any'; Dstv ='any';
+       Prlv = 'any';    Allow = Al;
+    }
+
+     acl(R,Pr,Al){
+       Ru = R;   Srcv = 'any'; Dstv ='any';
+       SPrl=Pr;EPrl=Pr;    Allow = Al;
+    }
+    acl(R,P,Src,Dst,SrPt,DsPt,Al){
+       Ru = R; Allow = Al;
+       SPrl = P ; EPrl= P;
+       SSrc = Src; ESrc = Src;
+       SDst = Dst; EDst = Dst;
+       SSrPt = SrPt; ESrPt = SrPt;
+       SDsPt = DsPt; EDsPt = DsPt;
+    }
+
+    acl(R,P1,P2,Sr1,SrWM, Ds1,DsWM,SrPt1,SrPt2,DsPt1,DsPt2,Al){
+       Ru = R; Allow = Al;
+       SPrl = P1 ; EPrl= P2;
+       SSrc = Sr1; SWM= SrWM;
+       SDst = Ds1; DWM = DsWM;
+       SSrPt = SrPt1; ESrPt = SrPt2;
+       SDsPt = DsPt1; EDsPt = DsPt2;
+    }
+}
+
+class firewall extends ni{
+    attributes
+        acl[] ACL;
+        series int De;
+    constraints
+        exists Rule in ACL:  rule(Rule.Pkt,In,Rule.Allow,De);
+        De = 1 --> In = In1;
+    predicates
+        rule(Pkt,Inpkt,Al,D):- Pkt = Inpkt, Al=D.
+    constructor firewall(Acl){
+       ACL = Acl;
+    }
+    
+}
+
+class network{
+    attributes
+        dmz_server[] DS;
+        server[] S;
+        client[] C;
+        attacker Att;
+        firewall Fw1,Fw2;
+        acl[] ACL1;
+        acl[] ACL2;
+        int[] IP;
+        int TCP,UDP,ICMP;
+    constraints
+         %For dm_servers
+        convert('10.1.1.1',IP[1]);
+        convert('10.1.1.2',IP[2]);
+        %For clients
+        convert('10.2.1.1',IP[3]);
+        convert('10.2.1.2',IP[4]);
+        convert('10.2.1.3',IP[5]);
+        convert('10.2.1.4',IP[6]);
+        %For server
+        convert('10.3.1.4',IP[7]);
+
+        %Allow ICMP
+        ACL1[1]  = new  acl(101, ICMP,1);
+        %TCP allowed
+        ACL1[2]  = new acl(102,TCP,TCP,IP[3],10,IP[1],10,1025,65535,70,82,1);
+        ACL1[3]  = new acl(103,TCP,TCP,IP[3],10,IP[1],10,1025,65535,25,25,1);
+        ACL1[4] = new acl(100,0);
+
+        ACL2[1] = new acl(101,UDP,IP[1],IP[7],8080,53,1);
+        ACL2[2] = new acl(100,0);
+
+
+
+        DS[1] = new dmz_server(IP[1],80,IP[7],80,Fw1,Fw2);
+        DS[2] = new dmz_server(IP[2],25,IP[7],80,Fw1,Fw2);
+
+        S[1] = new server(IP[7],53,Fw2);
+
+        C[1] = new client(IP[3],IP[1],80,Fw1);
+        C[2] = new client(IP[4],IP[2],80,Fw1);
+        C[3] = new client(IP[5],IP[1],80,Fw1);
+
+       Att = new attacker(IP[6],IP[1],Fw1);
+       Fw1  = new firewall(ACL1);
+       Fw2  = new firewall(ACL2);
+        writeln(Fw1.De[Time]);
+    predicates
+         convert(T,CT) :- atomic_list_concat([T1,T2,T3,T4],'.',T),
+                                        atom_number(T1, W),atom_number(T2, X),
+                                        atom_number(T3,Y),atom_number(T4,Z),
+                                        CT is W * 1000 + X * 100  + Y * 10 + Z.
+    constructor network(){
+       ICMP = 1;TCP = 6; UDP = 17;
+    }
+}
+
+
+$
+
+Compile
+
+?- tcob2swi('firewall.tcob','network()').
+
+Load
+
+?- [firewall].
+
+Run
+
+?- main(_,_).
+or if debug = yes
+? - main(_,_,_).
